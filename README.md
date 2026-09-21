@@ -2,9 +2,7 @@
 
 FitMate is a social networking application designed to help people who train at the gym find workout partners or personal trainers.
 
-## 1. Problem Description
-
-### 1.1. System Purpose
+## System Purpose
 
 The goal of the project is to create a social network that helps people who work out at the gym find a workout partner or a personal trainer.
 
@@ -16,7 +14,7 @@ The platform will also allow users to search for personal trainers. Trainers wil
 
 The system will consist of a client application and an API. It will be used by athletes, personal trainers, and administrators.
 
-## 1.2. Functional Requirements
+## Functional Requirements
 
 ### Unregistered User
 
