@@ -1,0 +1,36 @@
+services:
+  database:
+    image: postgres:17
+    container_name: database
+
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+
+    ports:
+      - "${DB_PORT}:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: backend
+
+    environment:
+      DB_HOST: database
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      API_PORT: ${API_PORT}
+
+    ports:
+      - "${API_PORT}:8080"
+
+    depends_on:
+      - database
+
+volumes:
+  postgres_data:
