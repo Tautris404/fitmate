@@ -7,10 +7,9 @@ INSERT INTO roles (name) VALUES ('atletas'), ('treneris'), ('administratorius');
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role_id INTEGER NOT NULL REFERENCES roles(id),
+    role_id INTEGER NOT NULL CHECK (gender IN ('vyras', 'moteris', 'kita')),
     first_name VARCHAR(50) NOT NULL,
     gender VARCHAR(7) NOT NULL CHECK (gender IN ('vyras', 'moteris', 'kita')),
     bio TEXT,
@@ -74,7 +73,6 @@ CREATE TABLE athlete_profiles (
 CREATE TABLE trainer_profiles (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
-    certification VARCHAR(255) NOT NULL,
     work_experience_years INTEGER NOT NULL CHECK (work_experience_years >= 0),
     education VARCHAR(255) NOT NULL
 );

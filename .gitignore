@@ -1,1 +1,5 @@
 .env
+.gocache
+.gomodcache
+go.sum
+backend/uploads/
