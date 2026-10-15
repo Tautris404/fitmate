@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"image"
 	"image/draw"
 	"image/jpeg"
@@ -34,9 +33,9 @@ func NewImageStorage(baseDirectory string) *ImageStorage {
 	return &ImageStorage{baseDirectory: baseDirectory}
 }
 
-func (s *ImageStorage) SaveUserImage(userID uint, fileHeader *multipart.FileHeader) (string, error) {
+func (s *ImageStorage) SaveUserImage(fileHeader *multipart.FileHeader) (string, error) {
 	if fileHeader.Size > maxUploadImageSize {
-		return "", errors.New("image is too large")
+		return "", ErrImageTooLarge
 	}
 
 	img, err := decodeUploadedImage(fileHeader)
@@ -49,7 +48,41 @@ func (s *ImageStorage) SaveUserImage(userID uint, fileHeader *multipart.FileHead
 		return "", err
 	}
 
-	return s.writeUserImage(userID, imageData)
+	return s.writeUserImage(imageData)
+}
+
+func (s *ImageStorage) SaveUserImages(images []multipart.FileHeader) ([]string, error) {
+	imageURLs := make([]string, 0, len(images))
+
+	for i := range images {
+		imageURL, err := s.SaveUserImage(&images[i])
+		if err != nil {
+			s.DeleteImages(imageURLs)
+			return nil, err
+		}
+
+		imageURLs = append(imageURLs, imageURL)
+	}
+
+	return imageURLs, nil
+}
+
+func (s *ImageStorage) DeleteImage(imageURL string) error {
+	fileName := filepath.Base(imageURL)
+	filePath := filepath.Join(s.baseDirectory, "images", fileName)
+
+	return os.Remove(filePath)
+}
+
+func (s *ImageStorage) DeleteImages(imageURLs []string) error {
+	var deleteErr error
+	for _, imageURL := range imageURLs {
+		err := s.DeleteImage(imageURL)
+		if err != nil {
+			deleteErr = errors.Join(deleteErr, err)
+		}
+	}
+	return deleteErr
 }
 
 func decodeUploadedImage(fileHeader *multipart.FileHeader) (image.Image, error) {
@@ -65,11 +98,14 @@ func decodeUploadedImage(fileHeader *multipart.FileHeader) (image.Image, error) 
 
 	img, format, err := image.Decode(source)
 	if err != nil {
-		return nil, errors.New("invalid image")
+		if errors.Is(err, image.ErrFormat) {
+			return nil, ErrImageFormat
+		}
+		return nil, ErrImageInvalid
 	}
 
 	if !isSupportedImageFormat(format) {
-		return nil, errors.New("unsupported image format")
+		return nil, ErrImageFormat
 	}
 
 	return img, nil
@@ -84,19 +120,22 @@ func validateImageHeader(fileHeader *multipart.FileHeader) error {
 
 	config, format, err := image.DecodeConfig(source)
 	if err != nil {
-		return errors.New("invalid image")
+		if errors.Is(err, image.ErrFormat) {
+			return ErrImageFormat
+		}
+		return ErrImageInvalid
 	}
 
 	if !isSupportedImageFormat(format) {
-		return errors.New("unsupported image format")
+		return ErrImageFormat
 	}
 
 	if config.Width <= 0 || config.Height <= 0 {
-		return errors.New("invalid image dimensions")
+		return ErrImageDimensionsInvalid
 	}
 
 	if int64(config.Width)*int64(config.Height) > maxImagePixels {
-		return errors.New("image dimensions are too large")
+		return ErrImageDimensionsTooLarge
 	}
 
 	return nil
@@ -112,8 +151,8 @@ func isSupportedImageFormat(format string) bool {
 	return true
 }
 
-func (s *ImageStorage) writeUserImage(userID uint, compressedImg []byte) (string, error) {
-	userDirectory := filepath.Join(s.baseDirectory, "users", fmt.Sprintf("%d", userID))
+func (s *ImageStorage) writeUserImage(compressedImg []byte) (string, error) {
+	userDirectory := filepath.Join(s.baseDirectory, "images")
 
 	if err := os.MkdirAll(userDirectory, 0755); err != nil {
 		return "", err
@@ -130,14 +169,20 @@ func (s *ImageStorage) writeUserImage(userID uint, compressedImg []byte) (string
 	if err != nil {
 		return "", err
 	}
-	defer destination.Close()
 
 	if _, err = destination.Write(compressedImg); err != nil {
+		destination.Close()
+		os.Remove(filePath)
+
 		return "", err
 	}
 
-	imageURL := fmt.Sprintf("/uploads/users/%d/%s.jpg", userID, fileName)
-	return imageURL, nil
+	if err := destination.Close(); err != nil {
+		os.Remove(filePath)
+		return "", err
+	}
+
+	return "/uploads/images/" + fileName + ".jpg", nil
 }
 
 func prepareImageForStorage(img image.Image) ([]byte, error) {
@@ -163,7 +208,7 @@ func prepareImageForStorage(img image.Image) ([]byte, error) {
 		newHeight := int(float64(bounds.Dy()) * 0.85)
 
 		if newWidth < 400 && newHeight < 400 {
-			return nil, errors.New("failed to compress image below 1 MB")
+			return nil, ErrImageCompressionFailed
 		}
 
 		currentImg = resizeImage(currentImg, newWidth, newHeight)
@@ -183,8 +228,8 @@ func resizeImage(img image.Image, maxWidth int, maxHeight int) image.Image {
 	heightRatio := float64(maxHeight) / float64(height)
 	ratio := min(widthRatio, heightRatio)
 
-	newWidth := int(float64(width) * ratio)
-	newHeight := int(float64(height) * ratio)
+	newWidth := max(1, int(float64(width)*ratio))
+	newHeight := max(1, int(float64(height)*ratio))
 
 	resizedImg := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
 	xdraw.CatmullRom.Scale(resizedImg, resizedImg.Bounds(), img, bounds, draw.Src, nil)

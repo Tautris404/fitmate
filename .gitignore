@@ -2,4 +2,4 @@
 .gocache
 .gomodcache
 go.sum
-backend/uploads/
+.DS_Store
