@@ -2,11 +2,14 @@ package repositories
 
 import (
 	"context"
+	"errors"
 	"fitmate/backend/models"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrUserCommitUncertain = errors.New("user commit outcome is uncertain")
 
 type AuthRepository struct {
 	db *pgxpool.Pool
@@ -16,13 +19,22 @@ func NewAuthRepository(db *pgxpool.Pool) *AuthRepository {
 	return &AuthRepository{db: db}
 }
 
-func (r *AuthRepository) GetRoleNameByID(ctx context.Context, roleID uint) (string, error) {
-	var roleName string
-	err := r.db.QueryRow(ctx,"SELECT name FROM roles WHERE id = $1", roleID).Scan(&roleName)
+func (r *AuthRepository) GymExists(ctx context.Context, gymID uint) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM gyms WHERE id = $1)", gymID).Scan(&exists)
 	if err != nil {
-		return "", err
+		return false, err
 	}
-	return roleName, nil
+	return exists, nil
+}
+
+func (r *AuthRepository) SpecializationExists(ctx context.Context, specializationID uint) (bool, error) {
+	var exists bool
+	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM specializations WHERE id = $1)", specializationID).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
 }
 
 func (r *AuthRepository) EmailExists(ctx context.Context, email string) (bool, error) {
@@ -34,7 +46,7 @@ func (r *AuthRepository) EmailExists(ctx context.Context, email string) (bool, e
 	return exists, nil
 }
 
-func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRequest, passwordHash string, roleName string) (uint, error) {
+func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRequest, passwordHash string, imageURLs []string) (uint, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return 0, err
@@ -51,12 +63,12 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRe
 		return 0, err
 	}
 
-	if roleName == "atletas" && user.AthleteProfile != nil {
+	if user.RoleID == 1 && user.AthleteProfile != nil {
 		err = createAthleteProfile(ctx, tx, userID, user.AthleteProfile)
 		if err != nil {
 			return 0, err
 		}
-	} else if roleName == "treneris" && user.TrainerProfile != nil {
+	} else if user.RoleID == 2 && user.TrainerProfile != nil {
 		err = createTrainerProfile(ctx, tx, userID, user.TrainerProfile)
 		if err != nil {
 			return 0, err
@@ -69,8 +81,14 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRe
 	if err := addUserGyms(ctx, tx, userID, user.GymIDs); err != nil {
 		return 0, err
 	}
-	if err := tx.Commit(ctx); err != nil {
+	if err := addUserImages(ctx, tx, userID, imageURLs); err != nil {
 		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		if errors.Is(err, pgx.ErrTxCommitRollback) {
+			return 0, err
+		}
+		return 0, errors.Join(ErrUserCommitUncertain, err)
 	}
 	return userID, nil
 }
@@ -90,7 +108,8 @@ func createTrainerProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *
 	var trainerID uint
 
 	err := tx.QueryRow(ctx, `INSERT INTO trainer_profiles (user_id, work_experience_years, education)
-	VALUES ($1, $2, $3)`,
+	VALUES ($1, $2, $3)
+	RETURNING id`,
 	userID, profile.WorkExperienceYears, profile.Education).Scan(&trainerID)
 
 	if err != nil {
@@ -119,7 +138,7 @@ func addTrainerSpecializations(ctx context.Context, tx pgx.Tx, trainerID uint, s
 
 func addUserPreferredWorkoutTimes(ctx context.Context, tx pgx.Tx, userID uint, preferredTimes []models.PreferredWorkoutTime) error {
 	for _, time := range preferredTimes {
-		_, err := tx.Exec(ctx, `INSERT INTO preferred_workout_times (user_id, day_of_week, start_time, end_time)
+		_, err := tx.Exec(ctx, `INSERT INTO user_preferred_workout_times (user_id, day_of_week, start_time, end_time)
 		VALUES ($1, $2, $3::time, $4::time)`, userID, time.DayOfWeek, time.StartTime, time.EndTime)
 		if err != nil {
 			return err
@@ -138,10 +157,12 @@ func addUserGyms(ctx context.Context, tx pgx.Tx, userID uint, gymIDs []uint) err
 	return nil
 }
 
-func addUserImage(ctx context.Context, tx pgx.Tx, userID uint, imageURL string) error {
-	_, err := tx.Exec(ctx, `INSERT INTO user_images (user_id, image_url) VALUES ($1, $2)`, userID, imageURL)
-	if err != nil {
-		return err
+func addUserImages(ctx context.Context, tx pgx.Tx, userID uint, imageURLs []string) error {
+	for _, imageURL := range imageURLs {
+		_, err := tx.Exec(ctx, `INSERT INTO user_images (user_id, image_url) VALUES ($1, $2)`, userID, imageURL)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

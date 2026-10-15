@@ -3,6 +3,10 @@ package main
 import (
 	"fitmate/backend/database"
 	"fitmate/backend/handlers"
+	"fitmate/backend/repositories"
+	"fitmate/backend/routes"
+	"fitmate/backend/services"
+	"fitmate/backend/storage"
 	"log"
 	"net/http"
 	"os"
@@ -13,7 +17,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	} else {
-		log.Println("Connected to the database successfully")
+		log.Println("successfully connected to the database")
 	}
 	defer db.Close()
 
@@ -21,11 +25,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	authRepository := repositories.NewAuthRepository(db)
+	imageStorage := storage.NewImageStorage("uploads")
+	authService := services.NewAuthService(authRepository, imageStorage)
+	authHandler := handlers.NewAuthHandler(authService)
+
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /auth/register", handlers.Register(db))
+	routes.RegisterAuthRoutes(mux, authHandler)
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
-	log.Println("Server running on :8080")
+	log.Println("server running on :8080")
 
 	err = http.ListenAndServe(":8080", mux)
 	if err != nil {
