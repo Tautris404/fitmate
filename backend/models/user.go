@@ -20,11 +20,22 @@ type AuthUser struct {
 	PasswordHash string
 	RoleID       uint
 }
+
 type UserProfile struct {
-	ID        uint   `json:"id"`
-	Email     string `json:"email"`
-	RoleID    uint   `json:"role_id"`
-	FirstName string `json:"first_name"`
-	Gender    string `json:"gender"`
-	Bio       string `json:"bio"`
+	Email                 string                  `json:"email"`
+	RoleID                uint                    `json:"role_id"`
+	FirstName             string                  `json:"first_name"`
+	Gender                string                  `json:"gender"`
+	Bio                   string                  `json:"bio"`
+	AthleteProfile        *AthleteProfile         `json:"athlete_profile,omitempty"`
+	TrainerProfile        *TrainerProfileDetailed `json:"trainer_profile,omitempty"`
+	Gyms                  []Gym                   `json:"gyms"`
+	PreferredWorkoutTimes []PreferredWorkoutTime  `json:"preferred_workout_times"`
+}
+
+type Gym struct {
+	ID      uint   `json:"id"`
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	City    string `json:"city"`
 }
