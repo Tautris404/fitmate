@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fitmate/backend/models"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -57,7 +58,7 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRe
 
 	err = tx.QueryRow(ctx, `INSERT INTO users (email, password_hash, role_id, first_name, gender, bio)
 	VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
-	user.Email, passwordHash, user.RoleID, user.FirstName, user.Gender, user.Bio).Scan(&userID)
+		user.Email, passwordHash, user.RoleID, user.FirstName, user.Gender, user.Bio).Scan(&userID)
 
 	if err != nil {
 		return 0, err
@@ -93,10 +94,10 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRe
 	return userID, nil
 }
 
-func createAthleteProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.AthleteProfileRequest) error {
+func createAthleteProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.AthleteProfile) error {
 	_, err := tx.Exec(ctx, `INSERT INTO athlete_profiles (user_id, date_of_birth, height_cm, weight_kg, experience_years)
 	VALUES ($1, $2::date, $3, $4, $5)`,
-	userID, profile.DateOfBirth, profile.Height, profile.Weight, profile.ExperienceYears)
+		userID, profile.DateOfBirth, profile.Height, profile.Weight, profile.ExperienceYears)
 
 	if err != nil {
 		return err
@@ -104,13 +105,13 @@ func createAthleteProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *
 	return nil
 }
 
-func createTrainerProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.TrainerProfileRequest) error {
+func createTrainerProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.TrainerProfile) error {
 	var trainerID uint
 
 	err := tx.QueryRow(ctx, `INSERT INTO trainer_profiles (user_id, work_experience_years, education)
 	VALUES ($1, $2, $3)
 	RETURNING id`,
-	userID, profile.WorkExperienceYears, profile.Education).Scan(&trainerID)
+		userID, profile.WorkExperienceYears, profile.Education).Scan(&trainerID)
 
 	if err != nil {
 		return err
@@ -165,4 +166,68 @@ func addUserImages(ctx context.Context, tx pgx.Tx, userID uint, imageURLs []stri
 		}
 	}
 	return nil
+}
+
+func (r *AuthRepository) GetUserByEmail(ctx context.Context, email string) (models.AuthUser, error) {
+	var user models.AuthUser
+
+	err := r.db.QueryRow(ctx, `
+	SELECT id, password_hash, role_id 
+	FROM USERS 
+	WHERE email = $1`,
+		email).Scan(
+		&user.ID,
+		&user.PasswordHash,
+		&user.RoleID,
+	)
+	if err != nil {
+		return models.AuthUser{}, err
+	}
+	return user, nil
+}
+
+func (r *AuthRepository) CreateAuthSession(
+	ctx context.Context,
+	userID uint,
+	tokenHash string,
+	sessionExpiresAt time.Time,
+	refreshExpiresAt time.Time,
+) (int64, error) {
+	if refreshExpiresAt.After(sessionExpiresAt) {
+		refreshExpiresAt = sessionExpiresAt
+	}
+
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	var sessionID int64
+	err = tx.QueryRow(ctx, `
+		INSERT INTO auth_sessions (user_id, expires_at)
+		VALUES ($1, $2)
+		RETURNING id`,
+		userID,
+		sessionExpiresAt,
+	).Scan(&sessionID)
+	if err != nil {
+		return 0, err
+	}
+
+	_, err = tx.Exec(ctx, `
+		INSERT INTO refresh_tokens (session_id, token_hash, expires_at)
+		VALUES ($1, $2, $3)`,
+		sessionID,
+		tokenHash,
+		refreshExpiresAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return sessionID, nil
 }

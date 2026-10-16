@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -16,88 +17,130 @@ type AuthHandler struct {
 	authService *services.AuthService
 }
 
-// Handleris gauna servisą su registracijos logika.
 func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 	return &AuthHandler{authService: authService}
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	// Ribojame visą užklausą, įskaitant JSON ir nuotraukas.
 	const maxRequestSize = 50 * 1024 * 1024
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
 
-	// Virš RAM ribos esantys failų duomenys laikomi laikinuose failuose.
 	const maxMemory = 20 * 1024 * 1024
 	err := r.ParseMultipartForm(maxMemory)
 
-	// Išvalome multipart laikinus failus, bet ne išsaugotas nuotraukas.
 	if r.MultipartForm != nil {
 		defer func() {
 			if err := r.MultipartForm.RemoveAll(); err != nil {
-				log.Printf("register: failed to remove temporary multipart files: %v", err)
+				log.Printf(logRegisterCleanupFailed, err)
 			}
 		}()
 	}
 	if err != nil {
 		var sizeErr *http.MaxBytesError
 		if errors.As(err, &sizeErr) {
-			http.Error(w, "request is too large", http.StatusRequestEntityTooLarge)
+			http.Error(w, messageRequestTooLarge, http.StatusRequestEntityTooLarge)
 			return
 		}
-		http.Error(w, "invalid multipart form", http.StatusBadRequest)
+		http.Error(w, messageInvalidMultipartForm, http.StatusBadRequest)
 		return
 	}
 
-	// Registracijos JSON tikimės multipart lauke „data“.
 	data := r.FormValue("data")
 	if data == "" {
-		http.Error(w, "data is required", http.StatusBadRequest)
+		http.Error(w, messageDataRequired, http.StatusBadRequest)
 		return
 	}
 	var req models.RegisterRequest
 	if err := json.Unmarshal([]byte(data), &req); err != nil {
-		http.Error(w, "invalid registration data", http.StatusBadRequest)
+		http.Error(w, messageInvalidRegistrationData, http.StatusBadRequest)
 		return
 	}
 
-	// Multipart failų rodykles konvertuojame į serviso priimamą sąrašą.
 	files := r.MultipartForm.File["images"]
 	images := make([]multipart.FileHeader, 0, len(files))
 	for _, file := range files {
 		images = append(images, *file)
 	}
 
-	// Duomenų validaciją ir registraciją atlieka servisas.
 	_, err = h.authService.Register(r.Context(), req, images)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrEmailExists):
-			http.Error(w, "email already exists", http.StatusConflict)
+			http.Error(w, messageEmailExists, http.StatusConflict)
 		case isRegistrationValidationError(err):
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		default:
-			// Vidinių klaidų detalių vartotojui nerodome.
-			log.Printf("register: service failed: %v", err)
-			http.Error(w, "internal server error", http.StatusInternalServerError)
+			log.Printf(logRegisterServiceFailed, err)
+			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
 		}
 		return
 	}
 
-	// Sėkmės atveju grąžiname 201 ir patvirtinimo pranešimą.
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(struct {
 		Message string `json:"message"`
 	}{
-		Message: "user registered successfully",
+		Message: messageRegistrationSuccess,
 	}); err != nil {
-		log.Printf("register: failed to encode response: %v", err)
+		log.Printf(logRegisterEncodeFailed, err)
 		return
 	}
 }
 
-// Be bendros serviso validacijos žymos atpažįstame esamas klaidas.
-// Nežinomos klaidos laikomos vidinėmis, kad neatskleistume jų detalių.
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var sizeErr *http.MaxBytesError
+		if errors.As(err, &sizeErr) {
+			http.Error(w, messageRequestTooLarge, http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		http.Error(w, messageInvalidLoginData, http.StatusBadRequest)
+		return
+	}
+
+	var req models.LoginRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		http.Error(w, messageInvalidLoginData, http.StatusBadRequest)
+		return
+	}
+
+	result, err := h.authService.Login(r.Context(), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidCredentials):
+			http.Error(w, messageInvalidCredentials, http.StatusUnauthorized)
+
+		case isLoginValidationError(err):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+		default:
+			log.Printf(logLoginServiceFailed, err)
+			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	if err := json.NewEncoder(w).Encode(result); err != nil {
+		log.Printf(logLoginEncodeFailed, err)
+	}
+}
+
+func isLoginValidationError(err error) bool {
+	return errors.Is(err, services.ErrEmailEmpty) ||
+		errors.Is(err, services.ErrEmailTooLong) ||
+		errors.Is(err, services.ErrEmailInvalid) ||
+		errors.Is(err, services.ErrPasswordNotLongEnough)
+}
+
 func isRegistrationValidationError(err error) bool {
 	validationErrors := []error{
 		services.ErrInvalidRole,
