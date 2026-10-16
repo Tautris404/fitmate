@@ -3,6 +3,7 @@ package main
 import (
 	"fitmate/backend/database"
 	"fitmate/backend/handlers"
+	"fitmate/backend/middleware"
 	"fitmate/backend/repositories"
 	"fitmate/backend/routes"
 	"fitmate/backend/services"
@@ -29,9 +30,13 @@ func main() {
 	imageStorage := storage.NewImageStorage("uploads")
 	authService := services.NewAuthService(authRepository, imageStorage)
 	authHandler := handlers.NewAuthHandler(authService)
+	authMiddleware, err := middleware.NewAuthMiddleware(os.Getenv("JWT_SECRET"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	mux := http.NewServeMux()
-	routes.RegisterAuthRoutes(mux, authHandler)
+	routes.RegisterAuthRoutes(mux, authHandler, authMiddleware)
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	log.Println("server running on :8080")

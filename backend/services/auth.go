@@ -6,13 +6,16 @@ import (
 	"fitmate/backend/models"
 	"fitmate/backend/repositories"
 	"fitmate/backend/storage"
-	"golang.org/x/crypto/bcrypt"
 	"math"
 	"mime/multipart"
 	"net/mail"
+	"os"
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jackc/pgx/v5"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService struct {
@@ -255,7 +258,7 @@ func parsePreferredWorkoutTime(input models.PreferredWorkoutTime) (models.Parsed
 	}, nil
 }
 
-func validateAthleteProfile(athleteProfile *models.AthleteProfileRequest, trainerProfile *models.TrainerProfileRequest) error {
+func validateAthleteProfile(athleteProfile *models.AthleteProfile, trainerProfile *models.TrainerProfile) error {
 	if athleteProfile == nil {
 		return ErrAthleteProfileEmpty
 	}
@@ -316,7 +319,7 @@ func validateAthleteProfileBirthDate(birthDate string) error {
 	return nil
 }
 
-func (s *AuthService) validateTrainerProfile(ctx context.Context, trainerProfile *models.TrainerProfileRequest, athleteProfile *models.AthleteProfileRequest) error {
+func (s *AuthService) validateTrainerProfile(ctx context.Context, trainerProfile *models.TrainerProfile, athleteProfile *models.AthleteProfile) error {
 	if trainerProfile == nil {
 		return ErrTrainerProfileEmpty
 	}
@@ -363,5 +366,115 @@ func (s *AuthService) validateTrainerSpecializations(ctx context.Context, specia
 		}
 	}
 
+	return nil
+}
+
+func (s *AuthService) Login(ctx context.Context, loginRequest *models.LoginRequest) (models.LoginResponse, error) {
+	loginRequest.Email = strings.TrimSpace(loginRequest.Email)
+
+	if err := s.validateEmailForLogin(ctx, loginRequest.Email); err != nil {
+		return models.LoginResponse{}, err
+	}
+	if err := validatePassword(loginRequest.Password); err != nil {
+		return models.LoginResponse{}, err
+	}
+
+	user, err := s.authenticateLoginUser(ctx, loginRequest.Email, loginRequest.Password)
+	if err != nil {
+		return models.LoginResponse{}, err
+	}
+
+	return s.createLoginSession(ctx, user)
+}
+
+func (s *AuthService) authenticateLoginUser(ctx context.Context, email, password string) (models.AuthUser, error) {
+	user, err := s.authRepository.GetUserByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.AuthUser{}, ErrInvalidCredentials
+		}
+
+		return models.AuthUser{}, ErrLoginFailed
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+
+	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return models.AuthUser{}, ErrInvalidCredentials
+		}
+		return models.AuthUser{}, ErrLoginFailed
+	}
+
+	return user, nil
+}
+
+func (s *AuthService) createLoginSession(ctx context.Context, user models.AuthUser) (models.LoginResponse, error) {
+	accessTTL, err := time.ParseDuration(os.Getenv("ACCESS_TOKEN_TTL"))
+	if err != nil || accessTTL <= 0 {
+		return models.LoginResponse{}, ErrLoginFailed
+	}
+
+	refreshTTL, err := time.ParseDuration(os.Getenv("REFRESH_TOKEN_TTL"))
+	if err != nil || refreshTTL <= 0 {
+		return models.LoginResponse{}, ErrLoginFailed
+	}
+
+	sessionTTL, err := time.ParseDuration(os.Getenv("SESSION_TTL"))
+	if err != nil || sessionTTL <= 0 {
+		return models.LoginResponse{}, ErrLoginFailed
+	}
+
+	if accessTTL > refreshTTL || refreshTTL > sessionTTL {
+		return models.LoginResponse{}, ErrLoginFailed
+	}
+
+	now := time.Now()
+	accessExpiresAt := now.Add(accessTTL)
+	refreshExpiresAt := now.Add(refreshTTL)
+	sessionExpiresAt := now.Add(sessionTTL)
+
+	accessToken, err := createAccessToken(user, accessExpiresAt)
+	if err != nil {
+		return models.LoginResponse{}, err
+	}
+
+	refreshToken, err := createRefreshToken()
+	if err != nil {
+		return models.LoginResponse{}, err
+	}
+
+	_, err = s.authRepository.CreateAuthSession(
+		ctx,
+		user.ID,
+		hashRefreshToken(refreshToken),
+		sessionExpiresAt,
+		refreshExpiresAt,
+	)
+	if err != nil {
+		return models.LoginResponse{}, ErrLoginFailed
+	}
+
+	return models.LoginResponse{
+		AccessToken:      accessToken,
+		AccessExpiresAt:  accessExpiresAt,
+		RefreshToken:     refreshToken,
+		RefreshExpiresAt: refreshExpiresAt,
+	}, nil
+}
+
+func (s *AuthService) validateEmailForLogin(ctx context.Context, email string) error {
+	emailLength := utf8.RuneCountInString(email)
+	if emailLength == 0 {
+		return ErrEmailEmpty
+	}
+	if emailLength > 100 {
+		return ErrEmailTooLong
+	}
+
+	address, err := mail.ParseAddress(email)
+	if err != nil || address.Address != email {
+		return ErrEmailInvalid
+	}
 	return nil
 }

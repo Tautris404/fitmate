@@ -1,6 +1,6 @@
 package models
 
-type AthleteProfileRequest struct {
+type AthleteProfile struct {
 	DateOfBirth     string  `json:"date_of_birth"`
 	Height          float64 `json:"height"`
 	Weight          float64 `json:"weight"`

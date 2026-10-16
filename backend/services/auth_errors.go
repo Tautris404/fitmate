@@ -37,4 +37,7 @@ var (
 	ErrPasswordHashFailed           = errors.New("failed to hash password")
 	ErrFailedToCreateUser           = errors.New("failed to create user")
 	ErrImageCountInvalid            = errors.New("must upload between 1 and 10 images")
+	ErrInvalidCredentials           = errors.New("invalid email or password")
+	ErrLoginFailed                  = errors.New("failed to log in")
+	ErrTokenGenerationFailed        = errors.New("failed to generate token")
 )
