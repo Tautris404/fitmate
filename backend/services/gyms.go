@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"math"
 	"strings"
 	"unicode/utf8"
 
@@ -31,7 +32,7 @@ func (s *GymsService) GetGyms(ctx context.Context) ([]models.Gym, error) {
 }
 
 func (s *GymsService) GetGymByID(ctx context.Context, gymID uint) (models.Gym, error) {
-	if gymID == 0 {
+	if err := validateGymID(gymID); err != nil {
 		return models.Gym{}, ErrGymNotFound
 	}
 
@@ -76,9 +77,9 @@ func (s *GymsService) CreateGym(ctx context.Context, gym *models.GymRequest) (ui
 	return gymID, nil
 }
 
-func (s *GymsService) UpdateGym(ctx context.Context, gymID uint, gym *models.GymRequest) (models.Gym, error) {
-	if gymID == 0 {
-		return models.Gym{}, ErrGymNotFound
+func (s *GymsService) UpdateGym(ctx context.Context, gymID uint, gym *models.GymRequest) error {
+	if err := validateGymID(gymID); err != nil {
+		return ErrGymNotFound
 	}
 
 	gym.Name = strings.TrimSpace(gym.Name)
@@ -86,36 +87,35 @@ func (s *GymsService) UpdateGym(ctx context.Context, gymID uint, gym *models.Gym
 	gym.City = strings.TrimSpace(gym.City)
 
 	if err := validateGymName(gym.Name); err != nil {
-		return models.Gym{}, err
+		return err
 	}
 	if err := validateGymAddress(gym.Address); err != nil {
-		return models.Gym{}, err
+		return err
 	}
 	if err := validateGymCity(gym.City); err != nil {
-		return models.Gym{}, err
+		return err
 	}
 
-	updatedGym, err := s.gymsRepository.UpdateGym(ctx, gymID, gym)
-	if err != nil {
+	if err := s.gymsRepository.UpdateGym(ctx, gymID, gym); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Gym{}, ErrGymNotFound
+			return ErrGymNotFound
 		}
 
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) &&
 			pgErr.Code == "23505" &&
 			pgErr.ConstraintName == "gyms_name_address_city_key" {
-			return models.Gym{}, ErrGymExists
+			return ErrGymExists
 		}
 
-		return models.Gym{}, ErrFailedToUpdateGym
+		return ErrFailedToUpdateGym
 	}
 
-	return updatedGym, nil
+	return nil
 }
 
 func (s *GymsService) DeleteGym(ctx context.Context, gymID uint) error {
-	if gymID == 0 {
+	if err := validateGymID(gymID); err != nil {
 		return ErrGymNotFound
 	}
 
@@ -126,6 +126,13 @@ func (s *GymsService) DeleteGym(ctx context.Context, gymID uint) error {
 		return ErrFailedToDeleteGym
 	}
 
+	return nil
+}
+
+func validateGymID(gymID uint) error {
+	if gymID == 0 || gymID > math.MaxInt32 {
+		return ErrInvalidGymID
+	}
 	return nil
 }
 
