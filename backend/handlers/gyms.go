@@ -138,8 +138,7 @@ func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gym, err := h.gymsService.UpdateGym(r.Context(), uint(gymID), &req)
-	if err != nil {
+	if err := h.gymsService.UpdateGym(r.Context(), uint(gymID), &req); err != nil {
 		switch {
 		case errors.Is(err, services.ErrGymNotFound):
 			http.Error(w, messageGymNotFound, http.StatusNotFound)
@@ -159,7 +158,7 @@ func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Pragma", "no-cache")
 
 	response := models.GymResponse{
-		ID:      gym.ID,
+		ID:      uint(gymID),
 		Message: messageGymUpdateSuccess,
 	}
 

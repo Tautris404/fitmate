@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"errors"
+	"math"
 
 	"fitmate/backend/models"
 	"fitmate/backend/repositories"
@@ -19,7 +20,7 @@ func NewUsersService(usersRepository *repositories.UsersRepository) *UsersServic
 }
 
 func (s *UsersService) GetUserProfile(ctx context.Context, userID uint) (models.UserProfile, error) {
-	if userID == 0 {
+	if err := validateUserID(userID); err != nil {
 		return models.UserProfile{}, ErrProfileNotFound
 	}
 
@@ -32,4 +33,11 @@ func (s *UsersService) GetUserProfile(ctx context.Context, userID uint) (models.
 	}
 
 	return profile, nil
+}
+
+func validateUserID(userID uint) error {
+	if userID == 0 || userID > math.MaxInt32 {
+		return ErrInvalidUserID
+	}
+	return nil
 }

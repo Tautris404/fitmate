@@ -72,21 +72,22 @@ func (r *GymsRepository) CreateGym(ctx context.Context, gym *models.GymRequest) 
 	return gymID, nil
 }
 
-func (r *GymsRepository) UpdateGym(ctx context.Context, gymID uint, gym *models.GymRequest) (models.Gym, error) {
-	var updatedGym models.Gym
-
-	err := r.db.QueryRow(ctx, `
+func (r *GymsRepository) UpdateGym(ctx context.Context, gymID uint, gym *models.GymRequest) error {
+	result, err := r.db.Exec(ctx, `
 		UPDATE gyms
 		SET name = $1, address = $2, city = $3
-		WHERE id = $4
-		RETURNING id, name, address, city`,
+		WHERE id = $4`,
 		gym.Name, gym.Address, gym.City, gymID,
-	).Scan(&updatedGym.ID, &updatedGym.Name, &updatedGym.Address, &updatedGym.City)
+	)
 	if err != nil {
-		return models.Gym{}, err
+		return err
 	}
 
-	return updatedGym, nil
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
 }
 
 func (r *GymsRepository) DeleteGym(ctx context.Context, gymID uint) error {
