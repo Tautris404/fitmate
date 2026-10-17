@@ -26,7 +26,8 @@ CREATE table gyms (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     address VARCHAR(255) NOT NULL,
-    city VARCHAR(100) NOT NULL
+    city VARCHAR(100) NOT NULL,
+    UNIQUE (name, address, city)
 );
 
 CREATE TABLE user_gyms (
@@ -201,3 +202,4 @@ CREATE TABLE messages (
     content TEXT NOT NULL CHECK (LENGTH(TRIM(content)) > 0),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
