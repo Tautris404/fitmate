@@ -106,29 +106,21 @@ func createAthleteProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *
 }
 
 func createTrainerProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.TrainerProfile) error {
-	var trainerID uint
-
-	err := tx.QueryRow(ctx, `INSERT INTO trainer_profiles (user_id, work_experience_years, education)
-	VALUES ($1, $2, $3)
-	RETURNING id`,
-		userID, profile.WorkExperienceYears, profile.Education).Scan(&trainerID)
+	_, err := tx.Exec(ctx, `INSERT INTO trainer_profiles (user_id, work_experience_years, education)
+	VALUES ($1, $2, $3)`,
+		userID, profile.WorkExperienceYears, profile.Education)
 
 	if err != nil {
 		return err
 	}
 
-	err = addTrainerSpecializations(ctx, tx, trainerID, profile.SpecializationIDs)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return addTrainerSpecializations(ctx, tx, userID, profile.SpecializationIDs)
 }
 
-func addTrainerSpecializations(ctx context.Context, tx pgx.Tx, trainerID uint, specializationIDs []uint) error {
+func addTrainerSpecializations(ctx context.Context, tx pgx.Tx, trainerUserID uint, specializationIDs []uint) error {
 	for _, specializationID := range specializationIDs {
-		_, err := tx.Exec(ctx, `INSERT INTO trainer_specializations (trainer_id, specialization_id)
-		VALUES ($1, $2)`, trainerID, specializationID)
+		_, err := tx.Exec(ctx, `INSERT INTO trainer_specializations (trainer_user_id, specialization_id)
+		VALUES ($1, $2)`, trainerUserID, specializationID)
 
 		if err != nil {
 			return err

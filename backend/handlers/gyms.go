@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 
 	"fitmate/backend/models"
 	"fitmate/backend/services"
@@ -30,6 +31,31 @@ func (h *GymsHandler) GetGyms(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(gyms); err != nil {
 		log.Printf(logGetGymsEncodeFailed, err)
+	}
+}
+
+func (h *GymsHandler) GetGymByID(w http.ResponseWriter, r *http.Request) {
+	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
+	if err != nil || gymID <= 0 {
+		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		return
+	}
+
+	gym, err := h.gymsService.GetGymByID(r.Context(), uint(gymID))
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrGymNotFound):
+			http.Error(w, messageGymNotFound, http.StatusNotFound)
+		default:
+			log.Printf(logGetGymFailed, err)
+			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(gym); err != nil {
+		log.Printf(logGetGymEncodeFailed, err)
 	}
 }
 
@@ -82,6 +108,95 @@ func (h *GymsHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf(logPostGymEncodeFailed, err)
+	}
+}
+
+func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
+	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
+	if err != nil || gymID <= 0 {
+		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var sizeErr *http.MaxBytesError
+		if errors.As(err, &sizeErr) {
+			http.Error(w, messageRequestTooLarge, http.StatusRequestEntityTooLarge)
+			return
+		}
+
+		http.Error(w, messageInvalidGymData, http.StatusBadRequest)
+		return
+	}
+
+	var req models.GymRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		http.Error(w, messageInvalidGymData, http.StatusBadRequest)
+		return
+	}
+
+	gym, err := h.gymsService.UpdateGym(r.Context(), uint(gymID), &req)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrGymNotFound):
+			http.Error(w, messageGymNotFound, http.StatusNotFound)
+		case errors.Is(err, services.ErrGymExists):
+			http.Error(w, messageGymExists, http.StatusConflict)
+		case isGymValidationError(err):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		default:
+			log.Printf(logPutGymFailed, err)
+			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	response := models.GymResponse{
+		ID:      gym.ID,
+		Message: messageGymUpdateSuccess,
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf(logPutGymEncodeFailed, err)
+	}
+}
+
+func (h *GymsHandler) DeleteGym(w http.ResponseWriter, r *http.Request) {
+	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
+	if err != nil || gymID <= 0 {
+		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		return
+	}
+
+	if err := h.gymsService.DeleteGym(r.Context(), uint(gymID)); err != nil {
+		switch {
+		case errors.Is(err, services.ErrGymNotFound):
+			http.Error(w, messageGymNotFound, http.StatusNotFound)
+		default:
+			log.Printf(logDeleteGymFailed, err)
+			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	response := models.GymResponse{
+		ID:      uint(gymID),
+		Message: messageGymDeletionSuccess,
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf(logDeleteGymEncodeFailed, err)
 	}
 }
 

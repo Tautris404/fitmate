@@ -9,6 +9,7 @@ import (
 	"fitmate/backend/models"
 	"fitmate/backend/repositories"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -28,6 +29,23 @@ func (s *GymsService) GetGyms(ctx context.Context) ([]models.Gym, error) {
 
 	return gyms, nil
 }
+
+func (s *GymsService) GetGymByID(ctx context.Context, gymID uint) (models.Gym, error) {
+	if gymID == 0 {
+		return models.Gym{}, ErrGymNotFound
+	}
+
+	gym, err := s.gymsRepository.GetGymByID(ctx, gymID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Gym{}, ErrGymNotFound
+		}
+		return models.Gym{}, ErrFailedToGetGym
+	}
+
+	return gym, nil
+}
+
 func (s *GymsService) CreateGym(ctx context.Context, gym *models.GymRequest) (uint, error) {
 	gym.Name = strings.TrimSpace(gym.Name)
 	gym.Address = strings.TrimSpace(gym.Address)
@@ -43,15 +61,6 @@ func (s *GymsService) CreateGym(ctx context.Context, gym *models.GymRequest) (ui
 		return 0, err
 	}
 
-	exists, err := s.gymsRepository.GymExists(ctx, *gym)
-
-	if err != nil {
-		return 0, ErrGymFailedCheck
-	}
-	if exists {
-		return 0, ErrGymExists
-	}
-
 	gymID, err := s.gymsRepository.CreateGym(ctx, gym)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -65,6 +74,59 @@ func (s *GymsService) CreateGym(ctx context.Context, gym *models.GymRequest) (ui
 		return 0, ErrFailedToCreateGym
 	}
 	return gymID, nil
+}
+
+func (s *GymsService) UpdateGym(ctx context.Context, gymID uint, gym *models.GymRequest) (models.Gym, error) {
+	if gymID == 0 {
+		return models.Gym{}, ErrGymNotFound
+	}
+
+	gym.Name = strings.TrimSpace(gym.Name)
+	gym.Address = strings.TrimSpace(gym.Address)
+	gym.City = strings.TrimSpace(gym.City)
+
+	if err := validateGymName(gym.Name); err != nil {
+		return models.Gym{}, err
+	}
+	if err := validateGymAddress(gym.Address); err != nil {
+		return models.Gym{}, err
+	}
+	if err := validateGymCity(gym.City); err != nil {
+		return models.Gym{}, err
+	}
+
+	updatedGym, err := s.gymsRepository.UpdateGym(ctx, gymID, gym)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Gym{}, ErrGymNotFound
+		}
+
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) &&
+			pgErr.Code == "23505" &&
+			pgErr.ConstraintName == "gyms_name_address_city_key" {
+			return models.Gym{}, ErrGymExists
+		}
+
+		return models.Gym{}, ErrFailedToUpdateGym
+	}
+
+	return updatedGym, nil
+}
+
+func (s *GymsService) DeleteGym(ctx context.Context, gymID uint) error {
+	if gymID == 0 {
+		return ErrGymNotFound
+	}
+
+	if err := s.gymsRepository.DeleteGym(ctx, gymID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrGymNotFound
+		}
+		return ErrFailedToDeleteGym
+	}
+
+	return nil
 }
 
 func validateGymName(gymName string) error {
