@@ -5,6 +5,7 @@ import "errors"
 var (
 	ErrFailedToGetGyms   = errors.New("failed to get gyms")
 	ErrFailedToGetGym    = errors.New("failed to get gym")
+	ErrInvalidGymID      = errors.New("invalid gym id")
 	ErrGymNotFound       = errors.New("gym not found")
 	ErrGymNameEmpty      = errors.New("gym name is required")
 	ErrGymNameTooLong    = errors.New("gym name field is too long")
