@@ -4,6 +4,8 @@ import "errors"
 
 var (
 	ErrFailedToGetGyms   = errors.New("failed to get gyms")
+	ErrFailedToGetGym    = errors.New("failed to get gym")
+	ErrGymNotFound       = errors.New("gym not found")
 	ErrGymNameEmpty      = errors.New("gym name is required")
 	ErrGymNameTooLong    = errors.New("gym name field is too long")
 	ErrGymAddressEmpty   = errors.New("gym address is required")
@@ -11,6 +13,7 @@ var (
 	ErrGymCityEmpty      = errors.New("gym city is required")
 	ErrGymCityTooLong    = errors.New("gym city field is too long")
 	ErrFailedToCreateGym = errors.New("failed to create gym")
+	ErrFailedToUpdateGym = errors.New("failed to update gym")
+	ErrFailedToDeleteGym = errors.New("failed to delete gym")
 	ErrGymExists         = errors.New("gym already exists")
-	ErrGymFailedCheck    = errors.New("failed to check gym")
 )

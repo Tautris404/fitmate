@@ -74,14 +74,13 @@ func (r *UsersRepository) GetAthleteProfile(ctx context.Context, userID uint) (m
 
 func (r *UsersRepository) GetTrainerProfile(ctx context.Context, userID uint) (models.TrainerProfileDetailed, error) {
 	var profile models.TrainerProfileDetailed
-	var trainerID int64
 
 	err := r.db.QueryRow(ctx, `
-		SELECT id, work_experience_years, education
+		SELECT work_experience_years, education
 		FROM trainer_profiles
 		WHERE user_id = $1`,
 		userID,
-	).Scan(&trainerID, &profile.WorkExperienceYears, &profile.Education)
+	).Scan(&profile.WorkExperienceYears, &profile.Education)
 	if err != nil {
 		return models.TrainerProfileDetailed{}, err
 	}
@@ -90,9 +89,9 @@ func (r *UsersRepository) GetTrainerProfile(ctx context.Context, userID uint) (m
 		SELECT s.id, s.name
 		FROM trainer_specializations ts
 		JOIN specializations s ON s.id = ts.specialization_id
-		WHERE ts.trainer_id = $1
+		WHERE ts.trainer_user_id = $1
 		ORDER BY s.id`,
-		trainerID,
+		userID,
 	)
 	if err != nil {
 		return models.TrainerProfileDetailed{}, err

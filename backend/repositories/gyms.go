@@ -2,7 +2,7 @@ package repositories
 
 import (
 	"context"
-	"errors"
+
 	"fitmate/backend/models"
 
 	"github.com/jackc/pgx/v5"
@@ -41,37 +41,63 @@ func (r *GymsRepository) GetGyms(ctx context.Context) ([]models.Gym, error) {
 	return gyms, nil
 }
 
-func (r *GymsRepository) CreateGym(ctx context.Context, gym *models.GymRequest) (uint, error) {
-	tx, err := r.db.Begin(ctx)
-	if err != nil {
-		return 0, err
-	}
-	defer tx.Rollback(ctx)
+func (r *GymsRepository) GetGymByID(ctx context.Context, gymID uint) (models.Gym, error) {
+	var gym models.Gym
 
+	err := r.db.QueryRow(ctx, `
+		SELECT g.id, g.name, g.address, g.city
+		FROM gyms g
+		WHERE g.id = $1`, gymID,
+	).Scan(&gym.ID, &gym.Name, &gym.Address, &gym.City)
+	if err != nil {
+		return models.Gym{}, err
+	}
+
+	return gym, nil
+}
+
+func (r *GymsRepository) CreateGym(ctx context.Context, gym *models.GymRequest) (uint, error) {
 	var gymID uint
 
-	err = tx.QueryRow(ctx, `INSERT INTO gyms (name, address, city)
-	VALUES ($1, $2, $3) RETURNING id`,
-		gym.Name, gym.Address, gym.City).Scan(&gymID)
-
+	err := r.db.QueryRow(ctx, `
+		INSERT INTO gyms (name, address, city)
+		VALUES ($1, $2, $3)
+		RETURNING id`,
+		gym.Name, gym.Address, gym.City,
+	).Scan(&gymID)
 	if err != nil {
 		return 0, err
 	}
 
-	if err := tx.Commit(ctx); err != nil {
-		if errors.Is(err, pgx.ErrTxCommitRollback) {
-			return 0, err
-		}
-		return 0, errors.Join(ErrUserCommitUncertain, err)
-	}
 	return gymID, nil
 }
 
-func (r *GymsRepository) GymExists(ctx context.Context, gym models.GymRequest) (bool, error) {
-	var exists bool
-	err := r.db.QueryRow(ctx, "SELECT EXISTS(SELECT 1 FROM gyms WHERE name = $1 AND address = $2 AND city = $3)", gym.Name, gym.Address, gym.City).Scan(&exists)
+func (r *GymsRepository) UpdateGym(ctx context.Context, gymID uint, gym *models.GymRequest) (models.Gym, error) {
+	var updatedGym models.Gym
+
+	err := r.db.QueryRow(ctx, `
+		UPDATE gyms
+		SET name = $1, address = $2, city = $3
+		WHERE id = $4
+		RETURNING id, name, address, city`,
+		gym.Name, gym.Address, gym.City, gymID,
+	).Scan(&updatedGym.ID, &updatedGym.Name, &updatedGym.Address, &updatedGym.City)
 	if err != nil {
-		return false, err
+		return models.Gym{}, err
 	}
-	return exists, nil
+
+	return updatedGym, nil
+}
+
+func (r *GymsRepository) DeleteGym(ctx context.Context, gymID uint) error {
+	result, err := r.db.Exec(ctx, `DELETE FROM gyms WHERE id = $1`, gymID)
+	if err != nil {
+		return err
+	}
+
+	if result.RowsAffected() == 0 {
+		return pgx.ErrNoRows
+	}
+
+	return nil
 }

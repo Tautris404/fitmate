@@ -3,13 +3,11 @@ CREATE TABLE roles (
     name VARCHAR(16) NOT NULL UNIQUE
 );
 
-INSERT INTO roles (name) VALUES ('atletas'), ('treneris'), ('administratorius');
-
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     email VARCHAR(100) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role_id INTEGER NOT NULL CHECK (gender IN ('vyras', 'moteris', 'kita')),
+    role_id INTEGER NOT NULL REFERENCES roles(id),
     first_name VARCHAR(50) NOT NULL,
     gender VARCHAR(7) NOT NULL CHECK (gender IN ('vyras', 'moteris', 'kita')),
     bio TEXT,
@@ -22,7 +20,7 @@ CREATE TABLE user_images (
     image_url VARCHAR(255) NOT NULL
 );
 
-CREATE table gyms (
+CREATE TABLE gyms (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     address VARCHAR(255) NOT NULL,
@@ -62,9 +60,9 @@ CREATE TABLE user_preferred_workout_times (
         ) WITH &&
     )
 );
+
 CREATE TABLE athlete_profiles (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     date_of_birth DATE NOT NULL,
     height_cm DECIMAL(5, 2) NOT NULL CHECK (height_cm > 0),
     weight_kg DECIMAL(5, 2) NOT NULL CHECK (weight_kg > 0),
@@ -72,8 +70,7 @@ CREATE TABLE athlete_profiles (
 );
 
 CREATE TABLE trainer_profiles (
-    id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
     work_experience_years INTEGER NOT NULL CHECK (work_experience_years >= 0),
     education VARCHAR(255) NOT NULL
 );
@@ -83,100 +80,21 @@ CREATE TABLE specializations (
     name VARCHAR(100) NOT NULL UNIQUE
 );
 
-INSERT INTO specializations (name) VALUES
-('Jėgos treniruotės'),
-('Raumenų masės auginimas'),
-('Kultūrizmas'),
-('Jėgos trikovė'),
-('Olimpinė sunkioji atletika'),
-('Funkcinės treniruotės'),
-('CrossFit treniruotės'),
-('Kalistenika'),
-('Treniruotės su kūno svoriu'),
-('Bendras fizinis pasirengimas'),
-
-('Svorio metimas'),
-('Riebalų mažinimas'),
-('Svorio kontrolė'),
-('Kūno kompozicijos gerinimas'),
-
-('Kardio treniruotės'),
-('Ištvermės treniruotės'),
-('Bėgimas'),
-('Maratono pasiruošimas'),
-('Dviračių sportas'),
-('Plaukimas'),
-('Triatlono treniruotės'),
-
-('HIIT treniruotės'),
-('Žiedinės treniruotės'),
-('Intensyvios grupinės treniruotės'),
-
-('Mobilumo treniruotės'),
-('Lankstumo treniruotės'),
-('Tempimo pratimai'),
-('Laikysenos gerinimas'),
-('Pusiausvyros treniruotės'),
-('Koordinacijos lavinimas'),
-
-('Kūno centro treniruotės'),
-('Nugaros stiprinimas'),
-('Apatinės kūno dalies treniruotės'),
-('Viršutinės kūno dalies treniruotės'),
-('Viso kūno treniruotės'),
-
-('Sportinis pasirengimas'),
-('Atletinis rengimas'),
-('Greičio lavinimas'),
-('Vikrumo lavinimas'),
-('Sprogstamosios jėgos lavinimas'),
-
-('Futbolo fizinis rengimas'),
-('Krepšinio fizinis rengimas'),
-('Teniso fizinis rengimas'),
-('Bokso treniruotės'),
-('Kovos menų fizinis rengimas'),
-
-('Reabilitacinės treniruotės'),
-('Traumų prevencija'),
-('Treniruotės po traumų'),
-('Korekcinės treniruotės'),
-
-('Senjorų fizinis aktyvumas'),
-('Jaunimo fizinis rengimas'),
-('Pradedančiųjų treniruotės'),
-('Moterų fitnesas'),
-('Vyrų fitnesas'),
-
-('Treniruotės nėščiosioms'),
-('Treniruotės po gimdymo'),
-
-('Joga'),
-('Pilatesas'),
-
-('Mitybos konsultacijos'),
-('Sveikos gyvensenos konsultacijos'),
-
-('Asmeninės treniruotės'),
-('Grupinės treniruotės'),
-('Nuotolinės treniruotės');
-
 CREATE TABLE trainer_specializations (
     id SERIAL PRIMARY KEY,
-    trainer_id INTEGER NOT NULL REFERENCES trainer_profiles(id) ON DELETE CASCADE,
+    trainer_user_id INTEGER NOT NULL REFERENCES trainer_profiles(user_id) ON DELETE CASCADE,
     specialization_id INTEGER NOT NULL REFERENCES specializations(id) ON DELETE CASCADE,
-    UNIQUE (trainer_id, specialization_id)
+    UNIQUE (trainer_user_id, specialization_id)
 );
 
 CREATE TABLE swipes (
     id SERIAL PRIMARY KEY,
-    swiper_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    target_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    swiper_user_id INTEGER NOT NULL REFERENCES athlete_profiles(user_id) ON DELETE CASCADE,
+    target_user_id INTEGER NOT NULL REFERENCES athlete_profiles(user_id) ON DELETE CASCADE,
     action VARCHAR(9) NOT NULL CHECK (action IN ('patinka', 'nepatinka')),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CHECK (swiper_id <> target_user_id),
-    UNIQUE (swiper_id, target_user_id)
+    CHECK (swiper_user_id <> target_user_id),
+    UNIQUE (swiper_user_id, target_user_id)
 );
 
 CREATE TABLE chats (
@@ -203,3 +121,39 @@ CREATE TABLE messages (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE auth_sessions (
+    id BIGSERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX auth_sessions_user_id_idx
+    ON auth_sessions(user_id);
+
+CREATE TABLE refresh_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    session_id BIGINT NOT NULL REFERENCES auth_sessions(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ
+);
+
+CREATE INDEX refresh_tokens_session_id_idx
+    ON refresh_tokens(session_id);
+
+CREATE UNIQUE INDEX refresh_tokens_one_unused_per_session_idx
+    ON refresh_tokens(session_id)
+    WHERE used_at IS NULL;
+
+CREATE TABLE reviews (
+    id SERIAL PRIMARY KEY,
+    trainer_user_id INTEGER NOT NULL REFERENCES trainer_profiles(user_id) ON DELETE CASCADE,
+    author_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+    comment TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (trainer_user_id, author_id)
+);
