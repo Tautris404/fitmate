@@ -39,9 +39,14 @@ func main() {
 	usersService := services.NewUsersService(usersRepository)
 	usersHandler := handlers.NewUsersHandler(usersService)
 
+	gymsRepository := repositories.NewGymsRepository(db)
+	gymsService := services.NewGymsService(gymsRepository)
+	gymsHandler := handlers.NewGymsHandler(gymsService)
+
 	mux := http.NewServeMux()
 	routes.RegisterAuthRoutes(mux, authHandler, authMiddleware)
 	routes.RegisterUsersRoutes(mux, usersHandler, authMiddleware)
+	routes.RegisterGymsRoutes(mux, gymsHandler, authMiddleware)
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	log.Println("server running on :8080")

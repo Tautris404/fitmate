@@ -32,10 +32,3 @@ type UserProfile struct {
 	Gyms                  []Gym                   `json:"gyms"`
 	PreferredWorkoutTimes []PreferredWorkoutTime  `json:"preferred_workout_times"`
 }
-
-type Gym struct {
-	ID      uint   `json:"id"`
-	Name    string `json:"name"`
-	Address string `json:"address"`
-	City    string `json:"city"`
-}
