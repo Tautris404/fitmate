@@ -66,7 +66,14 @@ CREATE TABLE athlete_profiles (
     date_of_birth DATE NOT NULL,
     height_cm DECIMAL(5, 2) NOT NULL CHECK (height_cm > 0),
     weight_kg DECIMAL(5, 2) NOT NULL CHECK (weight_kg > 0),
-    experience_years INTEGER NOT NULL CHECK (experience_years >= 0)
+    experience_years INTEGER NOT NULL CHECK (experience_years >= 0),
+    min_age INTEGER NOT NULL DEFAULT 0 CHECK (min_age BETWEEN 0 AND 100),
+    max_age INTEGER NOT NULL DEFAULT 100 CHECK (max_age BETWEEN 0 AND 100),
+    preferred_gender VARCHAR(7) NOT NULL DEFAULT 'visi' CHECK (preferred_gender IN ('visi', 'vyras', 'moteris', 'kita')),
+    min_experience INTEGER NOT NULL DEFAULT 0 CHECK (min_experience BETWEEN 0 AND 100),
+    max_experience INTEGER NOT NULL DEFAULT 100 CHECK (max_experience BETWEEN 0 AND 100),
+    CONSTRAINT athlete_profiles_preferred_age_range_check CHECK (min_age <= max_age),
+    CONSTRAINT athlete_profiles_preferred_experience_range_check CHECK (min_experience <= max_experience)
 );
 
 CREATE TABLE trainer_profiles (

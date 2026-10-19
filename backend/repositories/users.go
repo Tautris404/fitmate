@@ -228,9 +228,11 @@ func (r *UsersRepository) UpdateUser(ctx context.Context, userID uint, user *mod
 func updateAthleteProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.AthleteProfile) error {
 	result, err := tx.Exec(ctx, `
 		UPDATE athlete_profiles
-		SET date_of_birth = $1::date, height_cm = $2, weight_kg = $3, experience_years = $4
-		WHERE user_id = $5`,
-		profile.DateOfBirth, profile.Height, profile.Weight, profile.ExperienceYears, userID,
+		SET date_of_birth = $1::date, height_cm = $2, weight_kg = $3, experience_years = $4,
+			min_age = $5, max_age = $6, preferred_gender = $7, min_experience = $8, max_experience = $9
+		WHERE user_id = $10`,
+		profile.DateOfBirth, profile.Height, profile.Weight, profile.ExperienceYears,
+		profile.MinAge, profile.MaxAge, profile.PreferredGender, profile.MinExperience, profile.MaxExperience, userID,
 	)
 	if err != nil {
 		return err
@@ -326,11 +328,13 @@ func (r *UsersRepository) GetAthleteProfile(ctx context.Context, userID uint) (m
 	var profile models.AthleteProfile
 
 	err := r.db.QueryRow(ctx, `
-		SELECT TO_CHAR(date_of_birth, 'YYYY-MM-DD'), height_cm, weight_kg, experience_years
+		SELECT TO_CHAR(date_of_birth, 'YYYY-MM-DD'), height_cm, weight_kg, experience_years,
+			min_age, max_age, preferred_gender, min_experience, max_experience
 		FROM athlete_profiles
 		WHERE user_id = $1`,
 		userID,
-	).Scan(&profile.DateOfBirth, &profile.Height, &profile.Weight, &profile.ExperienceYears)
+	).Scan(&profile.DateOfBirth, &profile.Height, &profile.Weight, &profile.ExperienceYears,
+		&profile.MinAge, &profile.MaxAge, &profile.PreferredGender, &profile.MinExperience, &profile.MaxExperience)
 	if err != nil {
 		return models.AthleteProfile{}, err
 	}

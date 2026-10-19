@@ -278,6 +278,15 @@ func validateAthleteProfile(athleteProfile *models.AthleteProfile, trainerProfil
 	if err := validateExperienceYears(athleteProfile.ExperienceYears); err != nil {
 		return err
 	}
+	if err := validatePreferredAgeRange(athleteProfile.MinAge, athleteProfile.MaxAge); err != nil {
+		return err
+	}
+	if err := validatePreferredGender(athleteProfile.PreferredGender); err != nil {
+		return err
+	}
+	if err := validatePreferredExperienceRange(athleteProfile.MinExperience, athleteProfile.MaxExperience); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -285,6 +294,27 @@ func validateAthleteProfile(athleteProfile *models.AthleteProfile, trainerProfil
 func validateExperienceYears(years uint) error {
 	if years > math.MaxInt32 {
 		return ErrExperienceYearsInvalid
+	}
+	return nil
+}
+
+func validatePreferredAgeRange(minAge, maxAge int) error {
+	if minAge < 0 || minAge > 100 || maxAge < 0 || maxAge > 100 || minAge > maxAge {
+		return ErrPreferredAgeRangeInvalid
+	}
+	return nil
+}
+
+func validatePreferredGender(gender string) error {
+	if gender != "visi" && gender != "vyras" && gender != "moteris" && gender != "kita" {
+		return ErrPreferredGenderInvalid
+	}
+	return nil
+}
+
+func validatePreferredExperienceRange(minExperience, maxExperience int) error {
+	if minExperience < 0 || minExperience > 100 || maxExperience < 0 || maxExperience > 100 || minExperience > maxExperience {
+		return ErrPreferredExperienceRangeInvalid
 	}
 	return nil
 }

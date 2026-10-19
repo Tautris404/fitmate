@@ -146,6 +146,9 @@ func isLoginValidationError(err error) bool {
 
 func isRegistrationValidationError(err error) bool {
 	validationErrors := []error{
+		services.ErrPreferredAgeRangeInvalid,
+		services.ErrPreferredGenderInvalid,
+		services.ErrPreferredExperienceRangeInvalid,
 		services.ErrInvalidRole,
 		services.ErrEmailEmpty,
 		services.ErrEmailTooLong,

@@ -95,9 +95,12 @@ func (r *AuthRepository) CreateUser(ctx context.Context, user *models.RegisterRe
 }
 
 func createAthleteProfile(ctx context.Context, tx pgx.Tx, userID uint, profile *models.AthleteProfile) error {
-	_, err := tx.Exec(ctx, `INSERT INTO athlete_profiles (user_id, date_of_birth, height_cm, weight_kg, experience_years)
-	VALUES ($1, $2::date, $3, $4, $5)`,
-		userID, profile.DateOfBirth, profile.Height, profile.Weight, profile.ExperienceYears)
+	_, err := tx.Exec(ctx, `INSERT INTO athlete_profiles (
+		user_id, date_of_birth, height_cm, weight_kg, experience_years,
+		min_age, max_age, preferred_gender, min_experience, max_experience)
+	VALUES ($1, $2::date, $3, $4, $5, $6, $7, $8, $9, $10)`,
+		userID, profile.DateOfBirth, profile.Height, profile.Weight, profile.ExperienceYears,
+		profile.MinAge, profile.MaxAge, profile.PreferredGender, profile.MinExperience, profile.MaxExperience)
 
 	if err != nil {
 		return err

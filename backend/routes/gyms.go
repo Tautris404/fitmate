@@ -14,6 +14,7 @@ func RegisterGymsRoutes(
 ) {
 	mux.HandleFunc("GET /gyms", handler.GetGyms)
 	mux.HandleFunc("GET /gyms/{id}", handler.GetGymByID)
+	mux.HandleFunc("GET /gyms/{id}/trainers", authMiddleware.RequireAuthAndRole(handler.GetGymTrainers, 1, 2))
 	mux.HandleFunc("POST /gyms", authMiddleware.RequireAuthAndRole(handler.CreateGym, 3))
 	mux.HandleFunc("PUT /gyms/{id}", authMiddleware.RequireAuthAndRole(handler.UpdateGym, 3))
 	mux.HandleFunc("DELETE /gyms/{id}", authMiddleware.RequireAuthAndRole(handler.DeleteGym, 3))

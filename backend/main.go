@@ -39,9 +39,21 @@ func main() {
 	usersService := services.NewUsersService(usersRepository, authRepository, imageStorage)
 	usersHandler := handlers.NewUsersHandler(usersService, authService)
 
+	athletesRepository := repositories.NewAthletesRepository(db)
+	athletesService := services.NewAthletesService(athletesRepository, usersRepository)
+	athletesHandler := handlers.NewAthletesHandler(athletesService)
+
+	swipesRepository := repositories.NewSwipesRepository(db)
+	swipesService := services.NewSwipesService(swipesRepository)
+	swipesHandler := handlers.NewSwipesHandler(swipesService)
+
 	gymsRepository := repositories.NewGymsRepository(db)
 	gymsService := services.NewGymsService(gymsRepository)
 	gymsHandler := handlers.NewGymsHandler(gymsService)
+
+	trainersRepository := repositories.NewTrainersRepository(db)
+	trainersService := services.NewTrainersService(trainersRepository)
+	trainersHandler := handlers.NewTrainersHandler(trainersService)
 
 	reviewsRepository := repositories.NewReviewsRepository(db)
 	reviewsService := services.NewReviewsService(reviewsRepository)
@@ -50,7 +62,10 @@ func main() {
 	mux := http.NewServeMux()
 	routes.RegisterAuthRoutes(mux, authHandler, authMiddleware)
 	routes.RegisterUsersRoutes(mux, usersHandler, authMiddleware)
+	routes.RegisterAthletesRoutes(mux, athletesHandler, authMiddleware)
+	routes.RegisterSwipesRoutes(mux, swipesHandler, authMiddleware)
 	routes.RegisterGymsRoutes(mux, gymsHandler, authMiddleware)
+	routes.RegisterTrainersRoutes(mux, trainersHandler, authMiddleware)
 	routes.RegisterReviewsRoutes(mux, reviewsHandler, authMiddleware)
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 

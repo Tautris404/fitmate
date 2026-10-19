@@ -405,6 +405,9 @@ func (h *UsersHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 
 func isProfileUpdateValidationError(err error) bool {
 	validationErrors := []error{
+		services.ErrPreferredAgeRangeInvalid,
+		services.ErrPreferredGenderInvalid,
+		services.ErrPreferredExperienceRangeInvalid,
 		services.ErrInvalidRole,
 		services.ErrPasswordNotLongEnough,
 		services.ErrPasswordTooLong,

@@ -21,59 +21,6 @@ func NewReviewsHandler(reviewsService *services.ReviewsService) *ReviewsHandler 
 	return &ReviewsHandler{reviewsService: reviewsService}
 }
 
-func (h *ReviewsHandler) GetTrainerReviews(w http.ResponseWriter, r *http.Request) {
-	trainerID, err := strconv.ParseInt(r.PathValue("trainerId"), 10, 32)
-	if err != nil || trainerID <= 0 {
-		http.Error(w, messageInvalidTrainerID, http.StatusBadRequest)
-		return
-	}
-
-	reviews, err := h.reviewsService.GetTrainerReviews(r.Context(), uint(trainerID))
-	if err != nil {
-		switch {
-		case errors.Is(err, services.ErrInvalidTrainerID):
-			http.Error(w, messageInvalidTrainerID, http.StatusBadRequest)
-		default:
-			log.Printf(logGetTrainerReviewsFailed, err)
-			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(reviews); err != nil {
-		log.Printf(logGetTrainerReviewsEncodeFailed, err)
-	}
-}
-
-func (h *ReviewsHandler) GetMyReviews(w http.ResponseWriter, r *http.Request) {
-	trainerID, ok := middleware.UserIDFromContext(r.Context())
-	if !ok || trainerID == 0 {
-		w.Header().Set("WWW-Authenticate", "Bearer")
-		http.Error(w, messageUnauthorized, http.StatusUnauthorized)
-		return
-	}
-
-	reviews, err := h.reviewsService.GetTrainerReviews(r.Context(), trainerID)
-	if err != nil {
-		switch {
-		case errors.Is(err, services.ErrInvalidTrainerID):
-			w.Header().Set("WWW-Authenticate", "Bearer")
-			http.Error(w, messageUnauthorized, http.StatusUnauthorized)
-		default:
-			log.Printf(logGetMyReviewsFailed, err)
-			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	if err := json.NewEncoder(w).Encode(reviews); err != nil {
-		log.Printf(logGetMyReviewsEncodeFailed, err)
-	}
-}
-
 func (h *ReviewsHandler) GetReviewByID(w http.ResponseWriter, r *http.Request) {
 	reviewID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || reviewID <= 0 {
