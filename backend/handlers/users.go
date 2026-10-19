@@ -41,7 +41,7 @@ func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || userID <= 0 {
-		http.Error(w, messageInvalidUserID, http.StatusBadRequest)
+		http.Error(w, messageInvalidUserID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -67,7 +67,7 @@ func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || userID <= 0 {
-		http.Error(w, messageInvalidUserID, http.StatusBadRequest)
+		http.Error(w, messageInvalidUserID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	var req models.UserUpdateRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidProfileData, http.StatusBadRequest)
+		http.Error(w, messageInvalidProfileData, jsonErrorStatus(err))
 		return
 	}
 	if err := h.usersService.UpdateUser(r.Context(), uint(userID), &req); err != nil {
@@ -93,7 +93,7 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrProfileNotFound):
 			http.Error(w, messageProfileNotFound, http.StatusNotFound)
 		case isProfileUpdateValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logUpdateUserFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
@@ -112,7 +112,7 @@ func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) GetUserByID(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || userID <= 0 {
-		http.Error(w, messageInvalidUserID, http.StatusBadRequest)
+		http.Error(w, messageInvalidUserID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -141,7 +141,7 @@ func (h *UsersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	if query.Has("page") {
 		value, err := strconv.Atoi(query.Get("page"))
 		if err != nil {
-			http.Error(w, services.ErrInvalidPage.Error(), http.StatusBadRequest)
+			http.Error(w, services.ErrInvalidPage.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		page = value
@@ -149,7 +149,7 @@ func (h *UsersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	if query.Has("limit") {
 		value, err := strconv.Atoi(query.Get("limit"))
 		if err != nil {
-			http.Error(w, services.ErrInvalidLimit.Error(), http.StatusBadRequest)
+			http.Error(w, services.ErrInvalidLimit.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		limit = value
@@ -159,7 +159,7 @@ func (h *UsersHandler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidPage), errors.Is(err, services.ErrInvalidLimit):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logGetUsersFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
@@ -215,7 +215,7 @@ func (h *UsersHandler) DeleteMyImage(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) DeleteUserImage(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || userID <= 0 {
-		http.Error(w, messageInvalidUserID, http.StatusBadRequest)
+		http.Error(w, messageInvalidUserID, http.StatusUnprocessableEntity)
 		return
 	}
 	h.deleteUserImage(w, r, uint(userID))
@@ -224,7 +224,7 @@ func (h *UsersHandler) DeleteUserImage(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) deleteUserImage(w http.ResponseWriter, r *http.Request, userID uint) {
 	imageID, err := strconv.ParseInt(r.PathValue("imageId"), 10, 32)
 	if err != nil || imageID <= 0 {
-		http.Error(w, messageInvalidImageID, http.StatusBadRequest)
+		http.Error(w, messageInvalidImageID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -263,7 +263,7 @@ func (h *UsersHandler) AddMyImage(w http.ResponseWriter, r *http.Request) {
 func (h *UsersHandler) AddUserImage(w http.ResponseWriter, r *http.Request) {
 	userID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || userID <= 0 {
-		http.Error(w, messageInvalidUserID, http.StatusBadRequest)
+		http.Error(w, messageInvalidUserID, http.StatusUnprocessableEntity)
 		return
 	}
 	h.addUserImage(w, r, uint(userID))
@@ -291,7 +291,7 @@ func (h *UsersHandler) addUserImage(w http.ResponseWriter, r *http.Request, user
 
 	files := r.MultipartForm.File["images"]
 	if len(files) != 1 {
-		http.Error(w, services.ErrSingleImageRequired.Error(), http.StatusBadRequest)
+		http.Error(w, services.ErrSingleImageRequired.Error(), http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -301,7 +301,7 @@ func (h *UsersHandler) addUserImage(w http.ResponseWriter, r *http.Request, user
 		case errors.Is(err, services.ErrProfileNotFound):
 			http.Error(w, messageProfileNotFound, http.StatusNotFound)
 		case isImageUploadValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logAddUserImageFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
@@ -378,7 +378,7 @@ func (h *UsersHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 
 	var req models.UserProfileUpdateRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidProfileData, http.StatusBadRequest)
+		http.Error(w, messageInvalidProfileData, jsonErrorStatus(err))
 		return
 	}
 
@@ -387,7 +387,7 @@ func (h *UsersHandler) UpdateMyProfile(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrProfileNotFound):
 			http.Error(w, messageProfileNotFound, http.StatusNotFound)
 		case isProfileUpdateValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logUpdateMyProfileFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)

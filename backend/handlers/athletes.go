@@ -33,7 +33,7 @@ func (h *AthletesHandler) GetAthletes(w http.ResponseWriter, r *http.Request) {
 	if query.Has("after_id") {
 		value, err := strconv.ParseUint(query.Get("after_id"), 10, 31)
 		if err != nil {
-			http.Error(w, services.ErrInvalidAthleteAfterID.Error(), http.StatusBadRequest)
+			http.Error(w, services.ErrInvalidAthleteAfterID.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		afterID = uint(value)
@@ -43,7 +43,7 @@ func (h *AthletesHandler) GetAthletes(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidAthleteSeed), errors.Is(err, services.ErrInvalidAthleteAfterID):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		case errors.Is(err, services.ErrProfileNotFound):
 			http.Error(w, messageProfileNotFound, http.StatusNotFound)
 		default:

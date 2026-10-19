@@ -59,12 +59,12 @@ func createUserFromRequest(w http.ResponseWriter, r *http.Request, authService *
 
 	data := r.FormValue("data")
 	if data == "" {
-		http.Error(w, messageDataRequired, http.StatusBadRequest)
+		http.Error(w, messageDataRequired, http.StatusUnprocessableEntity)
 		return 0, false
 	}
 	var req models.RegisterRequest
 	if err := json.Unmarshal([]byte(data), &req); err != nil {
-		http.Error(w, messageInvalidRegistrationData, http.StatusBadRequest)
+		http.Error(w, messageInvalidRegistrationData, jsonErrorStatus(err))
 		return 0, false
 	}
 
@@ -80,7 +80,7 @@ func createUserFromRequest(w http.ResponseWriter, r *http.Request, authService *
 		case errors.Is(err, services.ErrEmailExists):
 			http.Error(w, messageEmailExists, http.StatusConflict)
 		case isRegistrationValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logRegisterServiceFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
@@ -108,7 +108,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	var req models.LoginRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidLoginData, http.StatusBadRequest)
+		http.Error(w, messageInvalidLoginData, jsonErrorStatus(err))
 		return
 	}
 
@@ -119,7 +119,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, messageInvalidCredentials, http.StatusUnauthorized)
 
 		case isLoginValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 
 		default:
 			log.Printf(logLoginServiceFailed, err)
@@ -190,4 +190,12 @@ func isRegistrationValidationError(err error) bool {
 		}
 	}
 	return false
+}
+
+func jsonErrorStatus(err error) int {
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &typeErr) {
+		return http.StatusUnprocessableEntity
+	}
+	return http.StatusBadRequest
 }
