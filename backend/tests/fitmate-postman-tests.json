@@ -1,0 +1,2583 @@
+{
+  "info": {
+    "_postman_id": "ddfdd9fd-2be8-498e-a402-cefacc6a1617",
+    "name": "fitmate tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "administrator_email",
+      "value": "admin@fitmate.test",
+      "type": "string"
+    },
+    {
+      "key": "trainer_email",
+      "value": "trainer1@fitmate.test",
+      "type": "string"
+    },
+    {
+      "key": "test_password",
+      "value": "Testas123!",
+      "type": "string"
+    },
+    {
+      "key": "test_image_path",
+      "value": "backend/tests/fixtures/profile.png",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Content-Type matches the response\", () => {",
+          "  const expected = pm.response.code >= 400 ? \"text/plain\" : \"application/json\";",
+          "  pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(expected);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Log in as administrator: /auth/login",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{administrator_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "for (const key of [\"administrator_access_token\", \"trainer_access_token\", \"trainer_id\", \"first_athlete_access_token\", \"first_athlete_id\", \"second_athlete_access_token\", \"second_athlete_id\", \"test_gym_id\", \"test_review_id\", \"uploaded_image_id\", \"initial_user_count\", \"athletes_seed\", \"first_page_athlete_ids\", \"administrator_id\", \"first_athlete_expected_profile\", \"second_athlete_expected_profile\", \"first_athlete_original_image_id\", \"second_athlete_original_image_id\", \"expected_gym\", \"athletes_next_after_id\", \"trainer_reviews\", \"first_page_trainer_ids\", \"gym_trainer_total\", \"initial_trainer_reviews\"]) {",
+              "  pm.collectionVariables.unset(key);",
+              "}",
+              "const run = Date.now().toString(36) + \"-\" + Math.random().toString(36).slice(2, 8);",
+              "pm.collectionVariables.set(\"test_run_id\", run);",
+              "pm.collectionVariables.set(\"first_athlete_email\", \"postman-a-\" + run + \"@fitmate.test\");",
+              "pm.collectionVariables.set(\"second_athlete_email\", \"postman-b-\" + run + \"@fitmate.test\");"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  const claims = JSON.parse(require(\"buffer\").Buffer.from(data.access_token.split(\".\")[1], \"base64\").toString());",
+              "  const previousId = pm.collectionVariables.get(\"administrator_id\");",
+              "  pm.collectionVariables.set(\"administrator_access_token\", data.access_token);",
+              "  pm.collectionVariables.set(\"administrator_id\", Number(claims.sub));",
+              "  pm.test(\"Tokens and expiry are valid\", () => {",
+              "    pm.expect(data.access_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.refresh_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.access_token).not.to.eql(data.refresh_token);",
+              "    pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.access_expires_at)).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.refresh_expires_at)).to.be.above(Date.parse(data.access_expires_at));",
+              "  });",
+              "  pm.test(\"Logged in as the expected user and role\", () => {",
+              "    pm.expect(Number(claims.sub)).to.be.above(0);",
+              "    pm.expect(claims.role_id).to.eql(3);",
+              "    if (previousId) pm.expect(Number(claims.sub)).to.eql(Number(previousId));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Log in as trainer: /auth/login",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{trainer_email}}\",\n  \"password\": \"{{test_password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  const claims = JSON.parse(require(\"buffer\").Buffer.from(data.access_token.split(\".\")[1], \"base64\").toString());",
+              "  const previousId = pm.collectionVariables.get(\"trainer_id\");",
+              "  pm.collectionVariables.set(\"trainer_access_token\", data.access_token);",
+              "  pm.collectionVariables.set(\"trainer_id\", Number(claims.sub));",
+              "  pm.test(\"Tokens and expiry are valid\", () => {",
+              "    pm.expect(data.access_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.refresh_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.access_token).not.to.eql(data.refresh_token);",
+              "    pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.access_expires_at)).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.refresh_expires_at)).to.be.above(Date.parse(data.access_expires_at));",
+              "  });",
+              "  pm.test(\"Logged in as the expected user and role\", () => {",
+              "    pm.expect(Number(claims.sub)).to.be.above(0);",
+              "    pm.expect(claims.role_id).to.eql(2);",
+              "    if (previousId) pm.expect(Number(claims.sub)).to.eql(Number(previousId));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Read initial user list before creating test accounts: /users",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users?page=1&limit=100",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"initial_user_count\", data.total);",
+              "  pm.test(\"User list pagination is consistent\", () => {",
+              "    pm.expect(data.page).to.eql(1);",
+              "    pm.expect(data.limit).to.eql(100);",
+              "    pm.expect(data.users.length).to.eql(Math.min(data.total, data.limit));",
+              "    pm.expect(data.total_pages).to.eql(Math.ceil(data.total / data.limit));",
+              "    pm.expect(new Set(data.users.map(x => x.id)).size).to.eql(data.users.length);",
+              "    pm.expect(data.users.map(x => x.id)).to.deep.eql(data.users.map(x => x.id).slice().sort((a,b) => a-b));",
+              "  });",
+              "  pm.test(\"User list contains public administrator fields only\", () => {",
+              "    data.users.forEach(user => {",
+              "      pm.expect(user).to.have.all.keys(\"id\", \"email\", \"first_name\", \"role_name\");",
+              "      pm.expect(user.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(user.email).to.include(\"@\");",
+              "      pm.expect(user.first_name).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(user.role_name).to.be.oneOf([\"atletas\", \"treneris\", \"administratorius\"]);",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Register first athlete: /auth/register",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/register",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "data",
+              "type": "text",
+              "value": "{\n  \"email\": \"{{first_athlete_email}}\",\n  \"password\": \"Testas123!\",\n  \"role\": 1,\n  \"first_name\": \"Postman Athlete\",\n  \"gender\": \"vyras\",\n  \"bio\": \"Created by the FitMate API tests.\",\n  \"gym_ids\": [\n    1,\n    2\n  ],\n  \"preferred_workout_times\": [\n    {\n      \"day_of_week\": 1,\n      \"start_time\": \"18:00\",\n      \"end_time\": \"19:30\"\n    }\n  ],\n  \"athlete_profile\": {\n    \"date_of_birth\": \"1998-03-12\",\n    \"height\": 182,\n    \"weight\": 82.5,\n    \"experience_years\": 3,\n    \"min_age\": 0,\n    \"max_age\": 100,\n    \"preferred_gender\": \"visi\",\n    \"min_experience\": 0,\n    \"max_experience\": 100\n  }\n}"
+            },
+            {
+              "key": "images",
+              "type": "file",
+              "src": "{{test_image_path}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const profile = JSON.parse(pm.variables.replaceIn(\"{\\n  \\\"email\\\": \\\"{{first_athlete_email}}\\\",\\n  \\\"password\\\": \\\"Testas123!\\\",\\n  \\\"role\\\": 1,\\n  \\\"first_name\\\": \\\"Postman Athlete\\\",\\n  \\\"gender\\\": \\\"vyras\\\",\\n  \\\"bio\\\": \\\"Created by the FitMate API tests.\\\",\\n  \\\"gym_ids\\\": [\\n    1,\\n    2\\n  ],\\n  \\\"preferred_workout_times\\\": [\\n    {\\n      \\\"day_of_week\\\": 1,\\n      \\\"start_time\\\": \\\"18:00\\\",\\n      \\\"end_time\\\": \\\"19:30\\\"\\n    }\\n  ],\\n  \\\"athlete_profile\\\": {\\n    \\\"date_of_birth\\\": \\\"1998-03-12\\\",\\n    \\\"height\\\": 182,\\n    \\\"weight\\\": 82.5,\\n    \\\"experience_years\\\": 3,\\n    \\\"min_age\\\": 0,\\n    \\\"max_age\\\": 100,\\n    \\\"preferred_gender\\\": \\\"visi\\\",\\n    \\\"min_experience\\\": 0,\\n    \\\"max_experience\\\": 100\\n  }\\n}\"));",
+              "delete profile.password;",
+              "delete profile.role;",
+              "const previous = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\") || \"{}\");",
+              "pm.collectionVariables.set(\"first_athlete_expected_profile\", JSON.stringify({...previous, ...profile}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Registration succeeded\", () => {",
+              "    pm.expect(data.message).to.eql(\"user registered successfully\");",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Log in as first athlete: /auth/login",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{first_athlete_email}}\",\n  \"password\": \"Testas123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  const claims = JSON.parse(require(\"buffer\").Buffer.from(data.access_token.split(\".\")[1], \"base64\").toString());",
+              "  const previousId = pm.collectionVariables.get(\"first_athlete_id\");",
+              "  pm.collectionVariables.set(\"first_athlete_access_token\", data.access_token);",
+              "  pm.collectionVariables.set(\"first_athlete_id\", Number(claims.sub));",
+              "  pm.test(\"Tokens and expiry are valid\", () => {",
+              "    pm.expect(data.access_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.refresh_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.access_token).not.to.eql(data.refresh_token);",
+              "    pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.access_expires_at)).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.refresh_expires_at)).to.be.above(Date.parse(data.access_expires_at));",
+              "  });",
+              "  pm.test(\"Logged in as the expected user and role\", () => {",
+              "    pm.expect(Number(claims.sub)).to.be.above(0);",
+              "    pm.expect(claims.role_id).to.eql(1);",
+              "    if (previousId) pm.expect(Number(claims.sub)).to.eql(Number(previousId));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Get own profile as first athlete: /users/me",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"first_athlete_original_image_id\", data.images[0].id);",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Own profile does not expose role\", () => {",
+              "    pm.expect(data).not.to.have.property(\"role_id\");",
+              "    pm.expect(data).not.to.have.property(\"role_name\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(1);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Update own profile as first athlete: /users/me",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/users/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Updated First Athlete\",\n  \"gender\": \"kita\",\n  \"bio\": \"Updated by Postman.\",\n  \"gym_ids\": [\n    2\n  ],\n  \"preferred_workout_times\": [\n    {\n      \"day_of_week\": 2,\n      \"start_time\": \"07:00\",\n      \"end_time\": \"08:00\"\n    },\n    {\n      \"day_of_week\": 4,\n      \"start_time\": \"18:00\",\n      \"end_time\": \"19:00\"\n    }\n  ],\n  \"athlete_profile\": {\n    \"date_of_birth\": \"1997-05-20\",\n    \"height\": 184,\n    \"weight\": 80,\n    \"experience_years\": 4,\n    \"min_age\": 18,\n    \"max_age\": 65,\n    \"preferred_gender\": \"visi\",\n    \"min_experience\": 1,\n    \"max_experience\": 15\n  }\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const profile = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+              "delete profile.password;",
+              "delete profile.role;",
+              "const previous = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\") || \"{}\");",
+              "pm.collectionVariables.set(\"first_athlete_expected_profile\", JSON.stringify({...previous, ...profile}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Own profile update succeeded\", () => {",
+              "    pm.expect(data.message).to.eql(\"profile updated successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Verify saved changes to own profile: /users/me",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Own profile does not expose role\", () => {",
+              "    pm.expect(data).not.to.have.property(\"role_id\");",
+              "    pm.expect(data).not.to.have.property(\"role_name\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(1);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Add image to own profile: /users/me/images",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/users/me/images",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "images",
+              "type": "file",
+              "src": "{{test_image_path}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"uploaded_image_id\", data.id);",
+              "  pm.test(\"Image ID and creation result are returned\", () => {",
+              "    pm.expect(data.id).to.be.a(\"number\").above(0);",
+              "    pm.expect(data.message).to.eql(\"image added successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - Verify added image in own profile: /users/me",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Own profile does not expose role\", () => {",
+              "    pm.expect(data).not.to.have.property(\"role_id\");",
+              "    pm.expect(data).not.to.have.property(\"role_name\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(2);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "    pm.expect(data.images.map(x => x.id)).to.have.members([Number(pm.collectionVariables.get(\"first_athlete_original_image_id\")), Number(pm.collectionVariables.get(\"uploaded_image_id\"))]);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Delete added image from own profile: /users/me/images/{imageId}",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/users/me/images/{{uploaded_image_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested image was deleted\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"uploaded_image_id\")));",
+              "    pm.expect(data.message).to.eql(\"image deleted successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Verify deleted image is absent from own profile: /users/me",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Own profile does not expose role\", () => {",
+              "    pm.expect(data).not.to.have.property(\"role_id\");",
+              "    pm.expect(data).not.to.have.property(\"role_name\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(1);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "    pm.expect(data.images.map(x => x.id)).to.deep.eql([Number(pm.collectionVariables.get(\"first_athlete_original_image_id\"))]);",
+              "    pm.expect(data.images.map(x => x.id)).not.to.include(Number(pm.collectionVariables.get(\"uploaded_image_id\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Create second athlete as administrator: /users",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/users",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "data",
+              "type": "text",
+              "value": "{\n  \"email\": \"{{second_athlete_email}}\",\n  \"password\": \"Testas123!\",\n  \"role\": 1,\n  \"first_name\": \"Postman Athlete\",\n  \"gender\": \"vyras\",\n  \"bio\": \"Created by the FitMate API tests.\",\n  \"gym_ids\": [\n    1,\n    2\n  ],\n  \"preferred_workout_times\": [\n    {\n      \"day_of_week\": 1,\n      \"start_time\": \"18:00\",\n      \"end_time\": \"19:30\"\n    }\n  ],\n  \"athlete_profile\": {\n    \"date_of_birth\": \"1998-03-12\",\n    \"height\": 182,\n    \"weight\": 82.5,\n    \"experience_years\": 3,\n    \"min_age\": 0,\n    \"max_age\": 100,\n    \"preferred_gender\": \"visi\",\n    \"min_experience\": 0,\n    \"max_experience\": 100\n  }\n}"
+            },
+            {
+              "key": "images",
+              "type": "file",
+              "src": "{{test_image_path}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const profile = JSON.parse(pm.variables.replaceIn(\"{\\n  \\\"email\\\": \\\"{{second_athlete_email}}\\\",\\n  \\\"password\\\": \\\"Testas123!\\\",\\n  \\\"role\\\": 1,\\n  \\\"first_name\\\": \\\"Postman Athlete\\\",\\n  \\\"gender\\\": \\\"vyras\\\",\\n  \\\"bio\\\": \\\"Created by the FitMate API tests.\\\",\\n  \\\"gym_ids\\\": [\\n    1,\\n    2\\n  ],\\n  \\\"preferred_workout_times\\\": [\\n    {\\n      \\\"day_of_week\\\": 1,\\n      \\\"start_time\\\": \\\"18:00\\\",\\n      \\\"end_time\\\": \\\"19:30\\\"\\n    }\\n  ],\\n  \\\"athlete_profile\\\": {\\n    \\\"date_of_birth\\\": \\\"1998-03-12\\\",\\n    \\\"height\\\": 182,\\n    \\\"weight\\\": 82.5,\\n    \\\"experience_years\\\": 3,\\n    \\\"min_age\\\": 0,\\n    \\\"max_age\\\": 100,\\n    \\\"preferred_gender\\\": \\\"visi\\\",\\n    \\\"min_experience\\\": 0,\\n    \\\"max_experience\\\": 100\\n  }\\n}\"));",
+              "delete profile.password;",
+              "delete profile.role;",
+              "const previous = JSON.parse(pm.collectionVariables.get(\"second_athlete_expected_profile\") || \"{}\");",
+              "pm.collectionVariables.set(\"second_athlete_expected_profile\", JSON.stringify({...previous, ...profile}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"second_athlete_id\", data.id);",
+              "  pm.test(\"User ID and creation result are returned\", () => {",
+              "    pm.expect(data.id).to.be.a(\"number\").above(0);",
+              "    pm.expect(data.message).to.eql(\"user created successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Log in as second athlete for matching: /auth/login",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{second_athlete_email}}\",\n  \"password\": \"Testas123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  const claims = JSON.parse(require(\"buffer\").Buffer.from(data.access_token.split(\".\")[1], \"base64\").toString());",
+              "  const previousId = pm.collectionVariables.get(\"second_athlete_id\");",
+              "  pm.collectionVariables.set(\"second_athlete_access_token\", data.access_token);",
+              "  pm.collectionVariables.set(\"second_athlete_id\", Number(claims.sub));",
+              "  pm.test(\"Tokens and expiry are valid\", () => {",
+              "    pm.expect(data.access_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.refresh_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.access_token).not.to.eql(data.refresh_token);",
+              "    pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.access_expires_at)).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.refresh_expires_at)).to.be.above(Date.parse(data.access_expires_at));",
+              "  });",
+              "  pm.test(\"Logged in as the expected user and role\", () => {",
+              "    pm.expect(Number(claims.sub)).to.be.above(0);",
+              "    pm.expect(claims.role_id).to.eql(1);",
+              "    if (previousId) pm.expect(Number(claims.sub)).to.eql(Number(previousId));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Get second athlete as administrator: /users/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"second_athlete_original_image_id\", data.images[0].id);",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"second_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Correct user and role\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "    pm.expect(data.role_name).to.eql(\"atletas\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(1);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Update second athlete as administrator: /users/{id}",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"first_name\": \"Updated Second Athlete\",\n  \"gender\": \"kita\",\n  \"bio\": \"Updated by Postman.\",\n  \"gym_ids\": [\n    2\n  ],\n  \"preferred_workout_times\": [\n    {\n      \"day_of_week\": 2,\n      \"start_time\": \"07:00\",\n      \"end_time\": \"08:00\"\n    },\n    {\n      \"day_of_week\": 4,\n      \"start_time\": \"18:00\",\n      \"end_time\": \"19:00\"\n    }\n  ],\n  \"athlete_profile\": {\n    \"date_of_birth\": \"1995-06-10\",\n    \"height\": 175,\n    \"weight\": 72,\n    \"experience_years\": 2,\n    \"min_age\": 18,\n    \"max_age\": 65,\n    \"preferred_gender\": \"visi\",\n    \"min_experience\": 1,\n    \"max_experience\": 15\n  },\n  \"password\": \"ChangedTestas123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const profile = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+              "delete profile.password;",
+              "delete profile.role;",
+              "const previous = JSON.parse(pm.collectionVariables.get(\"second_athlete_expected_profile\") || \"{}\");",
+              "pm.collectionVariables.set(\"second_athlete_expected_profile\", JSON.stringify({...previous, ...profile}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Administrator updated the requested user\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "    pm.expect(data.message).to.eql(\"user updated successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Verify saved changes to second athlete: /users/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"second_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Correct user and role\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "    pm.expect(data.role_name).to.eql(\"atletas\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(1);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 - Log in as second athlete with updated password: /auth/login",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/auth/login",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{second_athlete_email}}\",\n  \"password\": \"ChangedTestas123!\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  const claims = JSON.parse(require(\"buffer\").Buffer.from(data.access_token.split(\".\")[1], \"base64\").toString());",
+              "  const previousId = pm.collectionVariables.get(\"second_athlete_id\");",
+              "  pm.collectionVariables.set(\"second_athlete_access_token\", data.access_token);",
+              "  pm.collectionVariables.set(\"second_athlete_id\", Number(claims.sub));",
+              "  pm.test(\"Tokens and expiry are valid\", () => {",
+              "    pm.expect(data.access_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.refresh_token).to.be.a(\"string\").that.is.not.empty;",
+              "    pm.expect(data.access_token).not.to.eql(data.refresh_token);",
+              "    pm.expect(claims.exp * 1000).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.access_expires_at)).to.be.above(Date.now());",
+              "    pm.expect(Date.parse(data.refresh_expires_at)).to.be.above(Date.parse(data.access_expires_at));",
+              "  });",
+              "  pm.test(\"Logged in as the expected user and role\", () => {",
+              "    pm.expect(Number(claims.sub)).to.be.above(0);",
+              "    pm.expect(claims.role_id).to.eql(1);",
+              "    if (previousId) pm.expect(Number(claims.sub)).to.eql(Number(previousId));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "19 - Add second athlete image as administrator: /users/{id}/images",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/users/{{second_athlete_id}}/images",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "images",
+              "type": "file",
+              "src": "{{test_image_path}}"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"uploaded_image_id\", data.id);",
+              "  pm.test(\"Image ID and creation result are returned\", () => {",
+              "    pm.expect(data.id).to.be.a(\"number\").above(0);",
+              "    pm.expect(data.message).to.eql(\"image added successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "20 - Verify added image in second athlete profile: /users/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"second_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Correct user and role\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "    pm.expect(data.role_name).to.eql(\"atletas\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(2);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "    pm.expect(data.images.map(x => x.id)).to.have.members([Number(pm.collectionVariables.get(\"second_athlete_original_image_id\")), Number(pm.collectionVariables.get(\"uploaded_image_id\"))]);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21 - Delete second athlete image as administrator: /users/{id}/images/{imageId}",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/users/{{second_athlete_id}}/images/{{uploaded_image_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested image was deleted\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"uploaded_image_id\")));",
+              "    pm.expect(data.message).to.eql(\"image deleted successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22 - Verify deleted image is absent from second athlete profile: /users/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved profile matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"second_athlete_expected_profile\"));",
+              "    pm.expect(data.email).to.eql(expected.email);",
+              "    pm.expect(data.first_name).to.eql(expected.first_name);",
+              "    pm.expect(data.gender).to.eql(expected.gender);",
+              "    pm.expect(data.bio).to.eql(expected.bio);",
+              "    pm.expect(data.athlete_profile).to.deep.eql(expected.athlete_profile);",
+              "    pm.expect(data.gyms.map(x => x.id).sort((a,b) => a-b)).to.deep.eql(expected.gym_ids.slice().sort((a,b) => a-b));",
+              "    pm.expect(data.preferred_workout_times).to.deep.eql(expected.preferred_workout_times);",
+              "    pm.expect(data).not.to.have.property(\"password\");",
+              "    pm.expect(data).not.to.have.property(\"password_hash\");",
+              "    pm.expect(data).not.to.have.property(\"trainer_profile\");",
+              "  });",
+              "  pm.test(\"Correct user and role\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "    pm.expect(data.role_name).to.eql(\"atletas\");",
+              "  });",
+              "  pm.test(\"Profile images are saved correctly\", () => {",
+              "    pm.expect(data.images).to.have.lengthOf(1);",
+              "    data.images.forEach(image => {",
+              "      pm.expect(image.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(image.image_url).to.match(/^\\/uploads\\/images\\/.+\\.jpg$/);",
+              "    });",
+              "    pm.expect(data.images.map(x => x.id)).to.deep.eql([Number(pm.collectionVariables.get(\"second_athlete_original_image_id\"))]);",
+              "    pm.expect(data.images.map(x => x.id)).not.to.include(Number(pm.collectionVariables.get(\"uploaded_image_id\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23 - Get filtered athletes: /athletes",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/athletes",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"athletes_seed\", data.seed);",
+              "  pm.collectionVariables.set(\"first_page_athlete_ids\", JSON.stringify(data.athletes.map(x => x.id)));",
+              "  pm.collectionVariables.set(\"athletes_next_after_id\", data.next_after_id);",
+              "  pm.test(\"Athletes match saved age and experience filters\", () => {",
+              "    const filters = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).athlete_profile;",
+              "    pm.expect(data.athletes.length).to.be.within(1, 20);",
+              "    const ids = data.athletes.map(x => x.id);",
+              "    pm.expect(new Set(ids).size).to.eql(ids.length);",
+              "    pm.expect(ids).not.to.include(Number(pm.collectionVariables.get(\"first_athlete_id\")));",
+              "    data.athletes.forEach(athlete => {",
+              "      pm.expect(athlete.age).to.be.within(filters.min_age, filters.max_age);",
+              "      pm.expect(athlete.experience_years).to.be.within(filters.min_experience, filters.max_experience);",
+              "      pm.expect(athlete.first_name).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(athlete.height).to.be.a(\"number\").above(0);",
+              "      pm.expect(athlete.weight).to.be.a(\"number\").above(0);",
+              "      pm.expect(athlete.images).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(athlete.gyms).to.be.an(\"array\");",
+              "      pm.expect(athlete.preferred_workout_times).to.be.an(\"array\");",
+              "      pm.expect(athlete).not.to.have.property(\"email\");",
+              "      pm.expect(athlete).not.to.have.property(\"gender\");",
+              "      pm.expect(athlete).not.to.have.property(\"password_hash\");",
+              "    });",
+              "  });",
+              "  pm.test(\"Athlete cursor matches the returned page\", () => {",
+              "    pm.expect(data.seed).to.match(/^[0-9a-f]{32}$/);",
+              "    pm.expect(data.has_more).to.be.a(\"boolean\");",
+              "    pm.expect(data.next_after_id).to.eql(data.has_more ? data.athletes[data.athletes.length - 1].id : 0);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "24 - Repeat athlete list with same seed: /athletes",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/athletes?seed={{athletes_seed}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Same seed returns the same athletes in the same order\", () => {",
+              "    pm.expect(data.seed).to.eql(pm.collectionVariables.get(\"athletes_seed\"));",
+              "    pm.expect(data.athletes.map(x => x.id)).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"first_page_athlete_ids\")));",
+              "    pm.expect(data.next_after_id).to.eql(Number(pm.collectionVariables.get(\"athletes_next_after_id\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "25 - Get next athlete page with seed and cursor: /athletes",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/athletes?seed={{athletes_seed}}&after_id={{athletes_next_after_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Athletes match saved age and experience filters\", () => {",
+              "    const filters = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).athlete_profile;",
+              "    pm.expect(data.athletes.length).to.be.within(1, 20);",
+              "    const ids = data.athletes.map(x => x.id);",
+              "    pm.expect(new Set(ids).size).to.eql(ids.length);",
+              "    pm.expect(ids).not.to.include(Number(pm.collectionVariables.get(\"first_athlete_id\")));",
+              "    data.athletes.forEach(athlete => {",
+              "      pm.expect(athlete.age).to.be.within(filters.min_age, filters.max_age);",
+              "      pm.expect(athlete.experience_years).to.be.within(filters.min_experience, filters.max_experience);",
+              "      pm.expect(athlete.first_name).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(athlete.height).to.be.a(\"number\").above(0);",
+              "      pm.expect(athlete.weight).to.be.a(\"number\").above(0);",
+              "      pm.expect(athlete.images).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(athlete.gyms).to.be.an(\"array\");",
+              "      pm.expect(athlete.preferred_workout_times).to.be.an(\"array\");",
+              "      pm.expect(athlete).not.to.have.property(\"email\");",
+              "      pm.expect(athlete).not.to.have.property(\"gender\");",
+              "      pm.expect(athlete).not.to.have.property(\"password_hash\");",
+              "    });",
+              "  });",
+              "  pm.test(\"Athlete cursor matches the returned page\", () => {",
+              "    pm.expect(data.seed).to.match(/^[0-9a-f]{32}$/);",
+              "    pm.expect(data.has_more).to.be.a(\"boolean\");",
+              "    pm.expect(data.next_after_id).to.eql(data.has_more ? data.athletes[data.athletes.length - 1].id : 0);",
+              "  });",
+              "  pm.test(\"Next athlete page has no overlap with the first page\", () => {",
+              "    const previousIds = JSON.parse(pm.collectionVariables.get(\"first_page_athlete_ids\"));",
+              "    pm.expect(Number(pm.collectionVariables.get(\"athletes_next_after_id\"))).to.be.above(0);",
+              "    pm.expect(data.seed).to.eql(pm.collectionVariables.get(\"athletes_seed\"));",
+              "    data.athletes.forEach(athlete => pm.expect(previousIds).not.to.include(athlete.id));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "26 - Read existing trainer reviews as trainer: /trainers/reviews/me",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/trainers/reviews/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{trainer_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"initial_trainer_reviews\", JSON.stringify(data));",
+              "  pm.test(\"Trainer review list contains valid public review data\", () => {",
+              "    pm.expect(data).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(new Set(data.map(x => x.id)).size).to.eql(data.length);",
+              "    data.forEach(item => {",
+              "      pm.expect(item).to.have.all.keys(\"id\", \"author_name\", \"comment\", \"rating\");",
+              "      pm.expect(item.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(item.comment).to.be.a(\"string\");",
+              "      pm.expect(item.rating).to.be.within(1, 5);",
+              "      pm.expect(item.author_name).to.be.a(\"string\").that.is.not.empty;",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "27 - Read existing trainer reviews as athlete: /trainers/{trainerId}/reviews",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/trainers/{{trainer_id}}/reviews",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Trainer review list contains valid public review data\", () => {",
+              "    pm.expect(data).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(new Set(data.map(x => x.id)).size).to.eql(data.length);",
+              "    data.forEach(item => {",
+              "      pm.expect(item).to.have.all.keys(\"id\", \"author_name\", \"comment\", \"rating\");",
+              "      pm.expect(item.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(item.comment).to.be.a(\"string\");",
+              "      pm.expect(item.rating).to.be.within(1, 5);",
+              "      pm.expect(item.author_name).to.be.a(\"string\").that.is.not.empty;",
+              "    });",
+              "  });",
+              "  pm.test(\"Public and own trainer review lists agree\", () => {",
+              "    pm.expect(data).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"initial_trainer_reviews\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "28 - List public gyms: /gyms",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/gyms",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Gym list has complete public gym data\", () => {",
+              "    pm.expect(data).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(new Set(data.map(x => x.id)).size).to.eql(data.length);",
+              "    data.forEach(gym => {",
+              "      pm.expect(gym).to.have.all.keys(\"id\", \"name\", \"address\", \"city\");",
+              "      pm.expect(gym.id).to.be.a(\"number\").above(0);",
+              "      for (const key of [\"name\", \"address\", \"city\"]) pm.expect(gym[key]).to.be.a(\"string\").that.is.not.empty;",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "29 - Create test gym as administrator: /gyms",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/gyms",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Postman {{test_run_id}}\",\n  \"address\": \"Test address\",\n  \"city\": \"Vilnius\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const profile = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+              "delete profile.password;",
+              "delete profile.role;",
+              "const previous = JSON.parse(pm.collectionVariables.get(\"expected_gym\") || \"{}\");",
+              "pm.collectionVariables.set(\"expected_gym\", JSON.stringify({...previous, ...profile}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"test_gym_id\", data.id);",
+              "  pm.test(\"Gym ID and creation result are returned\", () => {",
+              "    pm.expect(data.id).to.be.a(\"number\").above(0);",
+              "    pm.expect(data.message).to.eql(\"gym created successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "30 - Verify created gym details: /gyms/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/gyms/{{test_gym_id}}",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved gym matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"expected_gym\"));",
+              "    pm.expect(data).to.deep.eql({id: Number(pm.collectionVariables.get(\"test_gym_id\")), ...expected});",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "31 - Update test gym as administrator: /gyms/{id}",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/gyms/{{test_gym_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Updated {{test_run_id}}\",\n  \"address\": \"Updated address\",\n  \"city\": \"Kaunas\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const profile = JSON.parse(pm.variables.replaceIn(pm.request.body.raw));",
+              "delete profile.password;",
+              "delete profile.role;",
+              "const previous = JSON.parse(pm.collectionVariables.get(\"expected_gym\") || \"{}\");",
+              "pm.collectionVariables.set(\"expected_gym\", JSON.stringify({...previous, ...profile}));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested gym was updated\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"test_gym_id\")));",
+              "    pm.expect(data.message).to.eql(\"updated gym data\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "32 - Verify updated gym details: /gyms/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/gyms/{{test_gym_id}}",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Saved gym matches submitted data\", () => {",
+              "    const expected = JSON.parse(pm.collectionVariables.get(\"expected_gym\"));",
+              "    pm.expect(data).to.deep.eql({id: Number(pm.collectionVariables.get(\"test_gym_id\")), ...expected});",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "33 - List gym trainers: /gyms/{id}/trainers",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/gyms/1/trainers",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{trainer_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"first_page_trainer_ids\", JSON.stringify(data.trainers.map(x => x.id)));",
+              "  pm.collectionVariables.set(\"gym_trainer_total\", data.total);",
+              "  pm.test(\"Trainer list is scoped to the requested gym\", () => {",
+              "    pm.expect(data.trainers).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(data.limit).to.eql(20);",
+              "    pm.expect(data.total_pages).to.eql(Math.ceil(data.total / 20));",
+              "    pm.expect(new Set(data.trainers.map(x => x.id)).size).to.eql(data.trainers.length);",
+              "    data.trainers.forEach(trainer => {",
+              "      pm.expect(trainer.gyms.map(x => x.id)).to.include(1);",
+              "      pm.expect(trainer.images).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(trainer.specializations).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(trainer.work_experience_years).to.be.a(\"number\").at.least(0);",
+              "      pm.expect(trainer.education).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(trainer).not.to.have.property(\"email\");",
+              "      pm.expect(trainer).not.to.have.property(\"password_hash\");",
+              "    });",
+              "  });",
+              "  pm.test(\"First trainer page and review statistics are correct\", () => {",
+              "    pm.expect(data.page).to.eql(1);",
+              "    pm.expect(data.trainers.length).to.eql(Math.min(data.total, 20));",
+              "    const trainer = data.trainers.find(x => x.id === Number(pm.collectionVariables.get(\"trainer_id\")));",
+              "    const reviews = JSON.parse(pm.collectionVariables.get(\"initial_trainer_reviews\"));",
+              "    pm.expect(trainer).not.to.eql(undefined);",
+              "    pm.expect(trainer.review_count).to.eql(reviews.length);",
+              "    pm.expect(trainer.average_rating).to.be.closeTo(reviews.reduce((sum, x) => sum + x.rating, 0) / reviews.length, 0.0051);",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "34 - Get next gym trainer page without duplicates: /gyms/{id}/trainers",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/gyms/1/trainers?page=2",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{trainer_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Trainer list is scoped to the requested gym\", () => {",
+              "    pm.expect(data.trainers).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(data.limit).to.eql(20);",
+              "    pm.expect(data.total_pages).to.eql(Math.ceil(data.total / 20));",
+              "    pm.expect(new Set(data.trainers.map(x => x.id)).size).to.eql(data.trainers.length);",
+              "    data.trainers.forEach(trainer => {",
+              "      pm.expect(trainer.gyms.map(x => x.id)).to.include(1);",
+              "      pm.expect(trainer.images).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(trainer.specializations).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(trainer.work_experience_years).to.be.a(\"number\").at.least(0);",
+              "      pm.expect(trainer.education).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(trainer).not.to.have.property(\"email\");",
+              "      pm.expect(trainer).not.to.have.property(\"password_hash\");",
+              "    });",
+              "  });",
+              "  pm.test(\"Second trainer page has the expected size and no overlap\", () => {",
+              "    pm.expect(data.page).to.eql(2);",
+              "    pm.expect(data.total).to.eql(Number(pm.collectionVariables.get(\"gym_trainer_total\")));",
+              "    pm.expect(data.trainers.length).to.eql(Math.min(20, Math.max(0, data.total - 20)));",
+              "    const previousIds = JSON.parse(pm.collectionVariables.get(\"first_page_trainer_ids\"));",
+              "    data.trainers.forEach(trainer => pm.expect(previousIds).not.to.include(trainer.id));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "35 - Delete test gym as administrator: /gyms/{id}",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/gyms/{{test_gym_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested resource was deleted\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"test_gym_id\")));",
+              "    pm.expect(data.message).to.eql(\"gym deleted successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "36 - Verify deleted gym is no longer available: /gyms/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/gyms/{{test_gym_id}}",
+        "auth": {
+          "type": "noauth"
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Deleted resource returns HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Deleted resource cannot be read\", () => pm.expect(pm.response.text().trim()).to.eql(\"gym not found\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "37 - First athlete likes second athlete - no match: /swipes",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/swipes",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"target_user_id\": {{second_athlete_id}},\n  \"action\": \"patinka\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Swipe returns the expected matching result\", () => {",
+              "    pm.expect(data).to.deep.eql({message: \"swipe created successfully\", match: false});",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "38 - Second athlete likes first athlete - match: /swipes",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/swipes",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{second_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"target_user_id\": {{first_athlete_id}},\n  \"action\": \"patinka\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Swipe returns the expected matching result\", () => {",
+              "    pm.expect(data).to.deep.eql({message: \"swipe created successfully\", match: true});",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "39 - Verify swiped athlete is excluded from recommendations: /athletes",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/athletes?seed={{athletes_seed}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Athletes match saved age and experience filters\", () => {",
+              "    const filters = JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).athlete_profile;",
+              "    pm.expect(data.athletes.length).to.be.within(1, 20);",
+              "    const ids = data.athletes.map(x => x.id);",
+              "    pm.expect(new Set(ids).size).to.eql(ids.length);",
+              "    pm.expect(ids).not.to.include(Number(pm.collectionVariables.get(\"first_athlete_id\")));",
+              "    data.athletes.forEach(athlete => {",
+              "      pm.expect(athlete.age).to.be.within(filters.min_age, filters.max_age);",
+              "      pm.expect(athlete.experience_years).to.be.within(filters.min_experience, filters.max_experience);",
+              "      pm.expect(athlete.first_name).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(athlete.height).to.be.a(\"number\").above(0);",
+              "      pm.expect(athlete.weight).to.be.a(\"number\").above(0);",
+              "      pm.expect(athlete.images).to.be.an(\"array\").that.is.not.empty;",
+              "      pm.expect(athlete.gyms).to.be.an(\"array\");",
+              "      pm.expect(athlete.preferred_workout_times).to.be.an(\"array\");",
+              "      pm.expect(athlete).not.to.have.property(\"email\");",
+              "      pm.expect(athlete).not.to.have.property(\"gender\");",
+              "      pm.expect(athlete).not.to.have.property(\"password_hash\");",
+              "    });",
+              "  });",
+              "  pm.test(\"Athlete cursor matches the returned page\", () => {",
+              "    pm.expect(data.seed).to.match(/^[0-9a-f]{32}$/);",
+              "    pm.expect(data.has_more).to.be.a(\"boolean\");",
+              "    pm.expect(data.next_after_id).to.eql(data.has_more ? data.athletes[data.athletes.length - 1].id : 0);",
+              "  });",
+              "  pm.test(\"Already swiped athlete is excluded\", () => {",
+              "    pm.expect(data.athletes.map(x => x.id)).not.to.include(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "40 - Write trainer review as first athlete: /reviews",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/reviews",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"trainer_user_id\": {{trainer_id}},\n  \"comment\": \"  Great trainer  \",\n  \"rating\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"test_review_id\", data.id);",
+              "  pm.test(\"Review ID and creation result are returned\", () => {",
+              "    pm.expect(data.id).to.be.a(\"number\").above(0);",
+              "    pm.expect(data.message).to.eql(\"review created successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "41 - Read created review: /reviews/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/reviews/{{test_review_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Created review matches submitted data\", () => {",
+              "    pm.expect(data).to.deep.eql({",
+              "      id: Number(pm.collectionVariables.get(\"test_review_id\")),",
+              "      author_name: JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).first_name,",
+              "      comment: \"Great trainer\",",
+              "      rating: 5",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "42 - Update own review: /reviews/{id}",
+      "request": {
+        "method": "PUT",
+        "url": "{{base_url}}/reviews/{{test_review_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"comment\": \"Updated review\",\n  \"rating\": 4\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested review was updated\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"test_review_id\")));",
+              "    pm.expect(data.message).to.eql(\"review updated successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "43 - Verify saved changes to own review: /reviews/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/reviews/{{test_review_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Updated review is persisted with the correct author\", () => {",
+              "    pm.expect(data).to.deep.eql({",
+              "      id: Number(pm.collectionVariables.get(\"test_review_id\")),",
+              "      author_name: JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).first_name,",
+              "      comment: \"Updated review\",",
+              "      rating: 4",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "44 - Verify updated review appears in own trainer reviews: /trainers/reviews/me",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/trainers/reviews/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{trainer_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.collectionVariables.set(\"trainer_reviews\", JSON.stringify(data));",
+              "  pm.test(\"Trainer review list contains the saved review\", () => {",
+              "    pm.expect(data).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(new Set(data.map(x => x.id)).size).to.eql(data.length);",
+              "    const review = data.find(x => x.id === Number(pm.collectionVariables.get(\"test_review_id\")));",
+              "    pm.expect(review).to.deep.eql({id: Number(pm.collectionVariables.get(\"test_review_id\")), author_name: JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).first_name, comment: \"Updated review\", rating: 4});",
+              "    data.forEach(item => {",
+              "      pm.expect(item.rating).to.be.within(1, 5);",
+              "      pm.expect(item.author_name).to.be.a(\"string\").that.is.not.empty;",
+              "    });",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "45 - Verify updated review appears in public trainer reviews: /trainers/{trainerId}/reviews",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/trainers/{{trainer_id}}/reviews",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"Trainer review list contains the saved review\", () => {",
+              "    pm.expect(data).to.be.an(\"array\").that.is.not.empty;",
+              "    pm.expect(new Set(data.map(x => x.id)).size).to.eql(data.length);",
+              "    const review = data.find(x => x.id === Number(pm.collectionVariables.get(\"test_review_id\")));",
+              "    pm.expect(review).to.deep.eql({id: Number(pm.collectionVariables.get(\"test_review_id\")), author_name: JSON.parse(pm.collectionVariables.get(\"first_athlete_expected_profile\")).first_name, comment: \"Updated review\", rating: 4});",
+              "    data.forEach(item => {",
+              "      pm.expect(item.rating).to.be.within(1, 5);",
+              "      pm.expect(item.author_name).to.be.a(\"string\").that.is.not.empty;",
+              "    });",
+              "  });",
+              "  pm.test(\"Public and own trainer review lists agree\", () => {",
+              "    pm.expect(data).to.deep.eql(JSON.parse(pm.collectionVariables.get(\"trainer_reviews\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "46 - Delete own review: /reviews/{id}",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/reviews/{{test_review_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested resource was deleted\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"test_review_id\")));",
+              "    pm.expect(data.message).to.eql(\"review deleted successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "47 - Verify deleted review is no longer available: /reviews/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/reviews/{{test_review_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Deleted resource returns HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Deleted resource cannot be read\", () => pm.expect(pm.response.text().trim()).to.eql(\"review not found\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "48 - Delete second athlete as administrator: /users/{id}",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested resource was deleted\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "    pm.expect(data.message).to.eql(\"user deleted successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "49 - Verify deleted second athlete is no longer available: /users/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/{{second_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Deleted resource returns HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Deleted resource cannot be read\", () => pm.expect(pm.response.text().trim()).to.eql(\"profile not found\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "50 - Delete own account as first athlete: /users/me",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base_url}}/users/me",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"The requested resource was deleted\", () => {",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get(\"first_athlete_id\")));",
+              "    pm.expect(data.message).to.eql(\"profile deleted successfully\");",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "51 - Verify deleted first athlete is no longer available: /users/{id}",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users/{{first_athlete_id}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Deleted resource returns HTTP 404\", () => pm.response.to.have.status(404));",
+              "pm.test(\"Deleted resource cannot be read\", () => pm.expect(pm.response.text().trim()).to.eql(\"profile not found\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "52 - Verify original user count after cleanup: /users",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/users?limit=100",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{administrator_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": []
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              "  const data = pm.response.json();",
+              "  pm.test(\"User list pagination is consistent\", () => {",
+              "    pm.expect(data.page).to.eql(1);",
+              "    pm.expect(data.limit).to.eql(100);",
+              "    pm.expect(data.users.length).to.eql(Math.min(data.total, data.limit));",
+              "    pm.expect(data.total_pages).to.eql(Math.ceil(data.total / data.limit));",
+              "    pm.expect(new Set(data.users.map(x => x.id)).size).to.eql(data.users.length);",
+              "    pm.expect(data.users.map(x => x.id)).to.deep.eql(data.users.map(x => x.id).slice().sort((a,b) => a-b));",
+              "  });",
+              "  pm.test(\"User list contains public administrator fields only\", () => {",
+              "    data.users.forEach(user => {",
+              "      pm.expect(user).to.have.all.keys(\"id\", \"email\", \"first_name\", \"role_name\");",
+              "      pm.expect(user.id).to.be.a(\"number\").above(0);",
+              "      pm.expect(user.email).to.include(\"@\");",
+              "      pm.expect(user.first_name).to.be.a(\"string\").that.is.not.empty;",
+              "      pm.expect(user.role_name).to.be.oneOf([\"atletas\", \"treneris\", \"administratorius\"]);",
+              "    });",
+              "  });",
+              "  pm.test(\"Cleanup restores the original users\", () => {",
+              "    pm.expect(data.total).to.eql(Number(pm.collectionVariables.get(\"initial_user_count\")));",
+              "    pm.expect(data.users.map(x => x.id)).not.to.include(Number(pm.collectionVariables.get(\"first_athlete_id\")));",
+              "    pm.expect(data.users.map(x => x.id)).not.to.include(Number(pm.collectionVariables.get(\"second_athlete_id\")));",
+              "  });",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
