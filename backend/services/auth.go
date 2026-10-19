@@ -95,7 +95,7 @@ func (s *AuthService) validateRegisterRequest(ctx context.Context, registerReque
 	if err := validateBio(registerRequest.Bio); err != nil {
 		return err
 	}
-	if err := s.validateGyms(ctx, registerRequest.GymIDs); err != nil {
+	if err := validateGyms(ctx, s.authRepository, registerRequest.GymIDs); err != nil {
 		return err
 	}
 	if err := validatePreferredWorkoutTimes(registerRequest.PreferredWorkoutTimes); err != nil {
@@ -107,7 +107,7 @@ func (s *AuthService) validateRegisterRequest(ctx context.Context, registerReque
 			return err
 		}
 	} else if registerRequest.RoleID == 2 {
-		if err := s.validateTrainerProfile(ctx, registerRequest.TrainerProfile, registerRequest.AthleteProfile); err != nil {
+		if err := validateTrainerProfile(ctx, s.authRepository, registerRequest.TrainerProfile, registerRequest.AthleteProfile); err != nil {
 			return err
 		}
 	}
@@ -192,14 +192,14 @@ func checkForDuplicateUintSlice(slice []uint) bool {
 	return false
 }
 
-func (s *AuthService) validateGyms(ctx context.Context, gymIDs []uint) error {
+func validateGyms(ctx context.Context, authRepository *repositories.AuthRepository, gymIDs []uint) error {
 	checkDublicates := checkForDuplicateUintSlice(gymIDs)
 	if checkDublicates {
 		return ErrGymIDsInvalid
 	}
 
 	for _, gymID := range gymIDs {
-		exists, err := s.authRepository.GymExists(ctx, gymID)
+		exists, err := authRepository.GymExists(ctx, gymID)
 
 		if err != nil {
 			return ErrGymIDsFailedCheck
@@ -319,7 +319,7 @@ func validateAthleteProfileBirthDate(birthDate string) error {
 	return nil
 }
 
-func (s *AuthService) validateTrainerProfile(ctx context.Context, trainerProfile *models.TrainerProfile, athleteProfile *models.AthleteProfile) error {
+func validateTrainerProfile(ctx context.Context, authRepository *repositories.AuthRepository, trainerProfile *models.TrainerProfile, athleteProfile *models.AthleteProfile) error {
 	if trainerProfile == nil {
 		return ErrTrainerProfileEmpty
 	}
@@ -333,7 +333,7 @@ func (s *AuthService) validateTrainerProfile(ctx context.Context, trainerProfile
 	if err := validateExperienceYears(trainerProfile.WorkExperienceYears); err != nil {
 		return err
 	}
-	if err := s.validateTrainerSpecializations(ctx, trainerProfile.SpecializationIDs); err != nil {
+	if err := validateTrainerSpecializations(ctx, authRepository, trainerProfile.SpecializationIDs); err != nil {
 		return err
 	}
 	return nil
@@ -349,14 +349,14 @@ func validateTrainerEducation(education string) error {
 	return nil
 }
 
-func (s *AuthService) validateTrainerSpecializations(ctx context.Context, specializationIDs []uint) error {
+func validateTrainerSpecializations(ctx context.Context, authRepository *repositories.AuthRepository, specializationIDs []uint) error {
 	checkDublicates := checkForDuplicateUintSlice(specializationIDs)
 	if checkDublicates {
 		return ErrSpecializationIDsInvalid
 	}
 
 	for _, specializationID := range specializationIDs {
-		exists, err := s.authRepository.SpecializationExists(ctx, specializationID)
+		exists, err := authRepository.SpecializationExists(ctx, specializationID)
 
 		if err != nil {
 			return ErrSpecializationIDsFailedCheck

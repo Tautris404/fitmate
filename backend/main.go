@@ -36,8 +36,8 @@ func main() {
 	}
 
 	usersRepository := repositories.NewUsersRepository(db)
-	usersService := services.NewUsersService(usersRepository)
-	usersHandler := handlers.NewUsersHandler(usersService)
+	usersService := services.NewUsersService(usersRepository, authRepository, imageStorage)
+	usersHandler := handlers.NewUsersHandler(usersService, authService)
 
 	gymsRepository := repositories.NewGymsRepository(db)
 	gymsService := services.NewGymsService(gymsRepository)
