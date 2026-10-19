@@ -58,3 +58,73 @@ An administrator will be able to:
 2. Log out of the system.
 3. View the list of athletes and trainers.
 4. Manage athletes and trainers by editing their information or removing them.
+
+## Technologies
+
+- **Go 1.26** with `net/http` for the backend API.
+- **PostgreSQL 17** with `pgx` for database access.
+- **JWT** for authentication and role-based access control.
+- **bcrypt** for password hashing.
+- **Docker and Docker Compose** for running the API and database.
+- **OpenAPI 3.0** for API documentation.
+- **Postman** for API testing.
+
+## Running the Project
+
+Install **Git** and **Docker Desktop**. Start Docker Desktop before running the commands below. These examples use PowerShell on Windows.
+
+1. **Download the project:**
+
+   ```powershell
+   git clone https://github.com/Tautris404/fitmate.git
+   cd fitmate
+   ```
+
+   If you already have the project, open a terminal in the repository root, which contains `docker-compose.yml`.
+
+2. **Create the environment file:**
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   Open `.env` and configure the database credentials, ports and token settings. `JWT_SECRET` must contain at least 32 bytes.
+
+3. **Build and start the API and database:**
+
+   ```powershell
+   docker compose up --build -d
+   ```
+
+   Run this command from the repository root. Docker builds the Go backend and starts both containers in the background. The first build may take a few minutes.
+
+   On the first database startup, the SQL files in `backend/database/migrations` create the schema and insert the initial data. Initialization runs only when the database volume is empty.
+
+4. **Access the API:**
+
+   Open `http://localhost:<API_PORT>/gyms` in a browser or Postman, replacing `<API_PORT>` with the value configured in `.env`.
+
+After changing backend code, run `docker compose up --build -d` again to rebuild it.
+
+To stop the project:
+
+```powershell
+docker compose down
+```
+
+The database and uploaded images remain stored in Docker volumes.
+
+## API Documentation
+
+The [OpenAPI specification](docs/fitmate-api.yaml) describes the implemented endpoints, request bodies, responses and access restrictions.
+
+## Running Postman Tests
+
+Start the project using the instructions above, then open the Postman desktop application.
+
+1. Import [fitmate-postman-tests.json](backend/tests/fitmate-postman-tests.json).
+2. In Postman settings, set the [working directory](https://learning.postman.com/docs/getting-started/installation/settings/working-directory) to the repository root, which contains `docker-compose.yml`.
+3. Open the `fitmate tests` collection and its **Variables** tab. Set `base_url` to `http://localhost:<API_PORT>`, using the port configured in `.env`.
+4. Set `test_image_path` to `backend/tests/fixtures/profile.png`.
+5. Select **Run** for the entire collection. Use **1 iteration**, **0 ms delay** and keep all requests selected in their existing order.
+6. Start the run and view the results.
