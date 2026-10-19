@@ -124,7 +124,5 @@ Start the project using the instructions above, then open the Postman desktop ap
 
 1. Import [fitmate-postman-tests.json](backend/tests/fitmate-postman-tests.json).
 2. In Postman settings, set the [working directory](https://learning.postman.com/docs/getting-started/installation/settings/working-directory) to the repository root, which contains `docker-compose.yml`.
-3. Open the `fitmate tests` collection and its **Variables** tab. Set `base_url` to `http://localhost:<API_PORT>`, using the port configured in `.env`.
-4. Set `test_image_path` to `backend/tests/fixtures/profile.png`.
-5. Select **Run** for the entire collection. Use **1 iteration**, **0 ms delay** and keep all requests selected in their existing order.
-6. Start the run and view the results.
+3. Open the `fitmate tests` collection and select **Run**. Use **1 iteration**, **0 ms delay** and keep all requests selected in their existing order.
+4. Start the run and view the results.
