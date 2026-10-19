@@ -22,7 +22,7 @@ func NewTrainersHandler(trainersService *services.TrainersService) *TrainersHand
 func (h *TrainersHandler) GetTrainerReviews(w http.ResponseWriter, r *http.Request) {
 	trainerID, err := strconv.ParseInt(r.PathValue("trainerId"), 10, 32)
 	if err != nil || trainerID <= 0 {
-		http.Error(w, messageInvalidTrainerID, http.StatusBadRequest)
+		http.Error(w, messageInvalidTrainerID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -30,7 +30,7 @@ func (h *TrainersHandler) GetTrainerReviews(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidTrainerID):
-			http.Error(w, messageInvalidTrainerID, http.StatusBadRequest)
+			http.Error(w, messageInvalidTrainerID, http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logGetTrainerReviewsFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
