@@ -22,6 +22,18 @@ func NewAuthHandler(authService *services.AuthService) *AuthHandler {
 }
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
+	if _, ok := createUserFromRequest(w, r, h.authService); !ok {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := json.NewEncoder(w).Encode(models.UserResponse{Message: messageRegistrationSuccess}); err != nil {
+		log.Printf(logRegisterEncodeFailed, err)
+	}
+}
+
+func createUserFromRequest(w http.ResponseWriter, r *http.Request, authService *services.AuthService) (uint, bool) {
 	const maxRequestSize = 50 * 1024 * 1024
 	r.Body = http.MaxBytesReader(w, r.Body, maxRequestSize)
 
@@ -39,21 +51,21 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		var sizeErr *http.MaxBytesError
 		if errors.As(err, &sizeErr) {
 			http.Error(w, messageRequestTooLarge, http.StatusRequestEntityTooLarge)
-			return
+			return 0, false
 		}
 		http.Error(w, messageInvalidMultipartForm, http.StatusBadRequest)
-		return
+		return 0, false
 	}
 
 	data := r.FormValue("data")
 	if data == "" {
 		http.Error(w, messageDataRequired, http.StatusBadRequest)
-		return
+		return 0, false
 	}
 	var req models.RegisterRequest
 	if err := json.Unmarshal([]byte(data), &req); err != nil {
 		http.Error(w, messageInvalidRegistrationData, http.StatusBadRequest)
-		return
+		return 0, false
 	}
 
 	files := r.MultipartForm.File["images"]
@@ -62,7 +74,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		images = append(images, *file)
 	}
 
-	_, err = h.authService.Register(r.Context(), req, images)
+	userID, err := authService.Register(r.Context(), req, images)
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrEmailExists):
@@ -73,19 +85,10 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 			log.Printf(logRegisterServiceFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
 		}
-		return
+		return 0, false
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(struct {
-		Message string `json:"message"`
-	}{
-		Message: messageRegistrationSuccess,
-	}); err != nil {
-		log.Printf(logRegisterEncodeFailed, err)
-		return
-	}
+	return userID, true
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {

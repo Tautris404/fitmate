@@ -78,7 +78,7 @@ func (s *ImageStorage) DeleteImages(imageURLs []string) error {
 	var deleteErr error
 	for _, imageURL := range imageURLs {
 		err := s.DeleteImage(imageURL)
-		if err != nil {
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			deleteErr = errors.Join(deleteErr, err)
 		}
 	}
