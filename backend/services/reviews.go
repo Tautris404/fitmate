@@ -21,19 +21,6 @@ func NewReviewsService(reviewsRepository *repositories.ReviewsRepository) *Revie
 	return &ReviewsService{reviewsRepository: reviewsRepository}
 }
 
-func (s *ReviewsService) GetTrainerReviews(ctx context.Context, trainerUserID uint) ([]models.Review, error) {
-	if err := validateReviewTrainerID(trainerUserID); err != nil {
-		return nil, err
-	}
-
-	reviews, err := s.reviewsRepository.GetTrainerReviews(ctx, trainerUserID)
-	if err != nil {
-		return nil, ErrFailedToGetTrainerReviews
-	}
-
-	return reviews, nil
-}
-
 func (s *ReviewsService) GetReviewByID(ctx context.Context, reviewID uint) (models.Review, error) {
 	if err := validateReviewID(reviewID); err != nil {
 		return models.Review{}, ErrReviewNotFound

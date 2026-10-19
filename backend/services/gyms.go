@@ -18,6 +18,8 @@ type GymsService struct {
 	gymsRepository *repositories.GymsRepository
 }
 
+const gymTrainersPageSize = 20
+
 func NewGymsService(gymsRepository *repositories.GymsRepository) *GymsService {
 	return &GymsService{gymsRepository: gymsRepository}
 }
@@ -45,6 +47,35 @@ func (s *GymsService) GetGymByID(ctx context.Context, gymID uint) (models.Gym, e
 	}
 
 	return gym, nil
+}
+
+func (s *GymsService) GetGymTrainers(ctx context.Context, gymID uint, page int) (models.TrainerListResponse, error) {
+	if err := validateGymID(gymID); err != nil {
+		return models.TrainerListResponse{}, err
+	}
+	if err := validatePagination(page, gymTrainersPageSize); err != nil {
+		return models.TrainerListResponse{}, err
+	}
+	if _, err := s.GetGymByID(ctx, gymID); err != nil {
+		return models.TrainerListResponse{}, err
+	}
+
+	offset := (page - 1) * gymTrainersPageSize
+	trainers, total, err := s.gymsRepository.GetGymTrainers(ctx, gymID, gymTrainersPageSize, offset)
+	if err != nil {
+		return models.TrainerListResponse{}, ErrFailedToGetGymTrainers
+	}
+	totalPages := total / gymTrainersPageSize
+	if total % gymTrainersPageSize != 0 {
+		totalPages++
+	}
+	return models.TrainerListResponse{
+		Trainers:   trainers,
+		Page:       page,
+		Limit:      gymTrainersPageSize,
+		Total:      total,
+		TotalPages: totalPages,
+	}, nil
 }
 
 func (s *GymsService) CreateGym(ctx context.Context, gym *models.GymRequest) (uint, error) {
