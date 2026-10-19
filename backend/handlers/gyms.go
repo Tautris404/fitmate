@@ -59,6 +59,42 @@ func (h *GymsHandler) GetGymByID(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *GymsHandler) GetGymTrainers(w http.ResponseWriter, r *http.Request) {
+	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
+	if err != nil || gymID <= 0 {
+		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		return
+	}
+	page := 1
+	query := r.URL.Query()
+	if query.Has("page") {
+		value, err := strconv.Atoi(query.Get("page"))
+		if err != nil {
+			http.Error(w, services.ErrInvalidPage.Error(), http.StatusBadRequest)
+			return
+		}
+		page = value
+	}
+
+	response, err := h.gymsService.GetGymTrainers(r.Context(), uint(gymID), page)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrInvalidGymID), errors.Is(err, services.ErrInvalidPage):
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, services.ErrGymNotFound):
+			http.Error(w, messageGymNotFound, http.StatusNotFound)
+		default:
+			log.Printf(logGetGymTrainersFailed, err)
+			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		log.Printf(logGetGymTrainersEncodeFailed, err)
+	}
+}
+
 func (h *GymsHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 
