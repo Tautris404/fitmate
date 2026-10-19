@@ -9,6 +9,8 @@ info:
 
     Successful API responses use application/json. Handler/middleware errors use text/plain; charset=utf-8 with a trailing newline. JSON handlers ignore unknown fields and do not enforce the Content-Type header. Multipart requests need a multipart/form-data boundary.
 
+    Malformed JSON or multipart framing returns 400; valid JSON with incorrect value types or invalid data returns 422. Invalid path/query values also return 422.
+
     Normal JSON bodies have a 1 MiB limit; multipart limits differ per operation. PUT profile methods replace editable fields and association arrays. Omitted numeric fields become zero; the API does not default max_age or max_experience to 100.
 
     Only implemented methods are included. Refresh, logout, standalone athlete/trainer profile GET and chat/message API methods are not registered. Login nevertheless returns a refresh token.
@@ -49,24 +51,9 @@ paths:
               example:
                 message: user registered successfully
         '400':
-          description: Invalid multipart/data, role/profile/associations or images.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid multipart form
-                error2:
-                  value: |
-                    data is required
-                error3:
-                  value: |
-                    invalid registration data
-                error4:
-                  value: |
-                    invalid preferred gender
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '409':
           description: Email already registered.
           content:
@@ -113,15 +100,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Malformed JSON or invalid email/password input.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid login data
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           description: Incorrect credentials. The login handler does not set WWW-Authenticate.
           content:
@@ -157,19 +138,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserListResponse'
-        '400':
-          description: Invalid page/limit or offset overflow.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid page
-                error2:
-                  value: |
-                    limit must be between 1 and 100
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -210,11 +180,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid multipart/data, role/profile/associations or images.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -300,18 +268,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid profile JSON or validation failure.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid profile data
-                error2:
-                  value: |
-                    invalid preferred gender
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -382,16 +341,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserDetails'
-        '400':
-          description: Invalid user ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid user id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -407,7 +358,7 @@ paths:
         - Users
       summary: Update an athlete or trainer
       description: 'Replace profile fields/associations. Email, role and images cannot change. A nonempty password
-        sets a new password; omission/empty preserves it. Administrator targets return 400 invalid role. Allowed
+        sets a new password; omission/empty preserves it. Administrator targets return 422 invalid role. Allowed
         roles: administrator.'
       operationId: updateUser
       x-roles:
@@ -434,21 +385,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid ID/profile/password or target role.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid user id
-                error2:
-                  value: |
-                    invalid profile data
-                error3:
-                  value: |
-                    invalid role
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -494,16 +433,8 @@ paths:
                 type: string
                 enum:
                   - no-cache
-        '400':
-          description: Invalid user ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid user id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -547,11 +478,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid ID/multipart/file count/image, or profile already has 10 images.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -597,11 +526,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid ID/multipart/file count/image, or profile already has 10 images.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -649,16 +576,8 @@ paths:
                 type: string
                 enum:
                   - no-cache
-        '400':
-          description: Invalid user/image ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid image id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -711,16 +630,8 @@ paths:
                 type: string
                 enum:
                   - no-cache
-        '400':
-          description: Invalid user/image ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid image id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -775,19 +686,8 @@ paths:
                 type: string
                 enum:
                   - no-store
-        '400':
-          description: Invalid seed/after_id, or nonzero after_id without seed.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid athlete seed
-                error2:
-                  value: |
-                    invalid athlete after ID
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -849,15 +749,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid gym JSON or field validation.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid gym data
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -894,16 +788,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Gym'
-        '400':
-          description: Invalid gym ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid gym id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '404':
           $ref: '#/components/responses/GymNotFound'
         '500':
@@ -941,18 +827,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid gym ID/JSON or field validation.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid gym id
-                error2:
-                  value: |
-                    invalid gym data
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1007,16 +884,8 @@ paths:
                 type: string
                 enum:
                   - no-cache
-        '400':
-          description: Invalid gym ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid gym id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1046,19 +915,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/TrainerListResponse'
-        '400':
-          description: Invalid gym ID/page or offset overflow.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid gym id
-                error2:
-                  value: |
-                    invalid page
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1122,16 +980,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Review'
-        '400':
-          description: Invalid trainer ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid trainer id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1172,15 +1022,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid JSON, trainer ID or rating.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid review data
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1221,16 +1065,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Review'
-        '400':
-          description: Invalid review ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid review id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1272,18 +1108,9 @@ paths:
                 enum:
                   - no-cache
         '400':
-          description: Invalid review ID/JSON/rating.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid review id
-                error2:
-                  value: |
-                    invalid review data
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1329,16 +1156,8 @@ paths:
                 type: string
                 enum:
                   - no-cache
-        '400':
-          description: Invalid review ID.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid review id
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1385,24 +1204,9 @@ paths:
                 enum:
                   - no-store
         '400':
-          description: Invalid JSON/target/action or self-swipe.
-          content:
-            text/plain:
-              schema:
-                $ref: '#/components/schemas/TextError'
-              examples:
-                error1:
-                  value: |
-                    invalid swipe data
-                error2:
-                  value: |
-                    invalid swipe target id
-                error3:
-                  value: |
-                    cannot swipe yourself
-                error4:
-                  value: |
-                    swipe action must be patinka or nepatinka
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -1707,7 +1511,7 @@ components:
       required: true
       description: 'Exactly one image file named images. Whole request limit: 11 MiB (11534336 bytes). Individual
         file limit: 10 MiB. At most 10 images per profile. Invalid/oversized individual images or the profile count
-        limit return 400; whole request overflow returns 413.'
+        limit return 422; whole request overflow returns 413.'
       content:
         multipart/form-data:
           schema:
@@ -1865,6 +1669,19 @@ components:
             error1:
               value: |
                 forbidden
+    BadRequest:
+      description: Malformed JSON, malformed multipart form or unreadable request body.
+      content:
+        text/plain:
+          schema:
+            $ref: '#/components/schemas/TextError'
+    UnprocessableContent:
+      description: Syntactically valid request data failed validation, including incorrect JSON value types,
+        invalid IDs, query parameters, profile fields or images.
+      content:
+        text/plain:
+          schema:
+            $ref: '#/components/schemas/TextError'
     InternalServerError:
       description: Unexpected database, storage or server failure.
       content:
@@ -2253,7 +2070,7 @@ components:
               format: password
               nullable: true
               description: Omitted/null/empty preserves password. Nonempty requires at least 8 Unicode characters
-                and at most 72 UTF-8 bytes; otherwise 400.
+                and at most 72 UTF-8 bytes; otherwise 422.
               example: NewTestas123!
     RegistrationFields:
       type: object

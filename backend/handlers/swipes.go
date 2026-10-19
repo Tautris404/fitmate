@@ -40,7 +40,7 @@ func (h *SwipesHandler) CreateSwipe(w http.ResponseWriter, r *http.Request) {
 	}
 	var req models.SwipePostRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidSwipeData, http.StatusBadRequest)
+		http.Error(w, messageInvalidSwipeData, jsonErrorStatus(err))
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h *SwipesHandler) CreateSwipe(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidSwipeTargetID), errors.Is(err, services.ErrSwipeSelf), errors.Is(err, services.ErrSwipeActionInvalid):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		case errors.Is(err, services.ErrSwipeTargetNotFound):
 			http.Error(w, err.Error(), http.StatusNotFound)
 		case errors.Is(err, services.ErrSwipeExists):

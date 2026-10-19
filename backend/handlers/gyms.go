@@ -37,7 +37,7 @@ func (h *GymsHandler) GetGyms(w http.ResponseWriter, r *http.Request) {
 func (h *GymsHandler) GetGymByID(w http.ResponseWriter, r *http.Request) {
 	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || gymID <= 0 {
-		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		http.Error(w, messageInvalidGymID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *GymsHandler) GetGymByID(w http.ResponseWriter, r *http.Request) {
 func (h *GymsHandler) GetGymTrainers(w http.ResponseWriter, r *http.Request) {
 	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || gymID <= 0 {
-		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		http.Error(w, messageInvalidGymID, http.StatusUnprocessableEntity)
 		return
 	}
 	page := 1
@@ -70,7 +70,7 @@ func (h *GymsHandler) GetGymTrainers(w http.ResponseWriter, r *http.Request) {
 	if query.Has("page") {
 		value, err := strconv.Atoi(query.Get("page"))
 		if err != nil {
-			http.Error(w, services.ErrInvalidPage.Error(), http.StatusBadRequest)
+			http.Error(w, services.ErrInvalidPage.Error(), http.StatusUnprocessableEntity)
 			return
 		}
 		page = value
@@ -80,7 +80,7 @@ func (h *GymsHandler) GetGymTrainers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, services.ErrInvalidGymID), errors.Is(err, services.ErrInvalidPage):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		case errors.Is(err, services.ErrGymNotFound):
 			http.Error(w, messageGymNotFound, http.StatusNotFound)
 		default:
@@ -112,7 +112,7 @@ func (h *GymsHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 
 	var req models.GymRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidGymData, http.StatusBadRequest)
+		http.Error(w, messageInvalidGymData, jsonErrorStatus(err))
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h *GymsHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, messageGymExists, http.StatusConflict)
 
 		case isGymValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 
 		default:
 			log.Printf(logPostGymFailed, err)
@@ -150,7 +150,7 @@ func (h *GymsHandler) CreateGym(w http.ResponseWriter, r *http.Request) {
 func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
 	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || gymID <= 0 {
-		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		http.Error(w, messageInvalidGymID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -170,7 +170,7 @@ func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
 
 	var req models.GymRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidGymData, http.StatusBadRequest)
+		http.Error(w, messageInvalidGymData, jsonErrorStatus(err))
 		return
 	}
 
@@ -181,7 +181,7 @@ func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, services.ErrGymExists):
 			http.Error(w, messageGymExists, http.StatusConflict)
 		case isGymValidationError(err):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		default:
 			log.Printf(logPutGymFailed, err)
 			http.Error(w, messageInternalServerError, http.StatusInternalServerError)
@@ -206,7 +206,7 @@ func (h *GymsHandler) UpdateGym(w http.ResponseWriter, r *http.Request) {
 func (h *GymsHandler) DeleteGym(w http.ResponseWriter, r *http.Request) {
 	gymID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || gymID <= 0 {
-		http.Error(w, messageInvalidGymID, http.StatusBadRequest)
+		http.Error(w, messageInvalidGymID, http.StatusUnprocessableEntity)
 		return
 	}
 

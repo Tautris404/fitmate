@@ -24,7 +24,7 @@ func NewReviewsHandler(reviewsService *services.ReviewsService) *ReviewsHandler 
 func (h *ReviewsHandler) GetReviewByID(w http.ResponseWriter, r *http.Request) {
 	reviewID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || reviewID <= 0 {
-		http.Error(w, messageInvalidReviewID, http.StatusBadRequest)
+		http.Error(w, messageInvalidReviewID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (h *ReviewsHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 
 	var req models.ReviewPostRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidReviewData, http.StatusBadRequest)
+		http.Error(w, messageInvalidReviewData, jsonErrorStatus(err))
 		return
 	}
 
@@ -81,7 +81,7 @@ func (h *ReviewsHandler) CreateReview(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, messageUnauthorized, http.StatusUnauthorized)
 		case errors.Is(err, services.ErrInvalidTrainerID), errors.Is(err, services.ErrReviewRatingInvalid):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		case errors.Is(err, services.ErrTrainerNotFound):
 			http.Error(w, messageTrainerNotFound, http.StatusNotFound)
 		case errors.Is(err, services.ErrReviewExists):
@@ -117,7 +117,7 @@ func (h *ReviewsHandler) UpdateReview(w http.ResponseWriter, r *http.Request) {
 
 	reviewID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || reviewID <= 0 {
-		http.Error(w, messageInvalidReviewID, http.StatusBadRequest)
+		http.Error(w, messageInvalidReviewID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -137,7 +137,7 @@ func (h *ReviewsHandler) UpdateReview(w http.ResponseWriter, r *http.Request) {
 
 	var req models.ReviewUpdateRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		http.Error(w, messageInvalidReviewData, http.StatusBadRequest)
+		http.Error(w, messageInvalidReviewData, jsonErrorStatus(err))
 		return
 	}
 
@@ -147,7 +147,7 @@ func (h *ReviewsHandler) UpdateReview(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, messageUnauthorized, http.StatusUnauthorized)
 		case errors.Is(err, services.ErrInvalidReviewID), errors.Is(err, services.ErrReviewRatingInvalid):
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
 		case errors.Is(err, services.ErrReviewNotFound):
 			http.Error(w, messageReviewNotFound, http.StatusNotFound)
 		default:
@@ -180,7 +180,7 @@ func (h *ReviewsHandler) DeleteReview(w http.ResponseWriter, r *http.Request) {
 
 	reviewID, err := strconv.ParseInt(r.PathValue("id"), 10, 32)
 	if err != nil || reviewID <= 0 {
-		http.Error(w, messageInvalidReviewID, http.StatusBadRequest)
+		http.Error(w, messageInvalidReviewID, http.StatusUnprocessableEntity)
 		return
 	}
 
@@ -190,7 +190,7 @@ func (h *ReviewsHandler) DeleteReview(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("WWW-Authenticate", "Bearer")
 			http.Error(w, messageUnauthorized, http.StatusUnauthorized)
 		case errors.Is(err, services.ErrInvalidReviewID):
-			http.Error(w, messageInvalidReviewID, http.StatusBadRequest)
+			http.Error(w, messageInvalidReviewID, http.StatusUnprocessableEntity)
 		case errors.Is(err, services.ErrReviewNotFound):
 			http.Error(w, messageReviewNotFound, http.StatusNotFound)
 		default:

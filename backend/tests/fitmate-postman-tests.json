@@ -2059,7 +2059,145 @@
       ]
     },
     {
-      "name": "40 - Write trainer review as first athlete: /reviews",
+      "name": "40 - Reject malformed review JSON: /reviews",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/reviews",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"trainer_user_id\":",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Invalid request is rejected with the expected message\", () => {",
+              "  pm.expect(pm.response.text().trim()).to.eql(\"invalid review data\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "41 - Reject out-of-range review rating: /reviews",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/reviews",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"trainer_user_id\": {{trainer_id}}, \"comment\": \"Invalid rating\", \"rating\": 99}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Invalid request is rejected with the expected message\", () => {",
+              "  pm.expect(pm.response.text().trim()).to.eql(\"rating must be between 1 and 5\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "42 - Reject incorrect review field type: /reviews",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/reviews",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{first_athlete_access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"trainer_user_id\": {{trainer_id}}, \"comment\": \"Invalid type\", \"rating\": \"five\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 422\", () => pm.response.to.have.status(422));",
+              "pm.test(\"Invalid request is rejected with the expected message\", () => {",
+              "  pm.expect(pm.response.text().trim()).to.eql(\"invalid review data\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "43 - Write trainer review as first athlete: /reviews",
       "request": {
         "method": "POST",
         "url": "{{base_url}}/reviews",
@@ -2110,7 +2248,7 @@
       ]
     },
     {
-      "name": "41 - Read created review: /reviews/{id}",
+      "name": "44 - Read created review: /reviews/{id}",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/reviews/{{test_review_id}}",
@@ -2150,7 +2288,7 @@
       ]
     },
     {
-      "name": "42 - Update own review: /reviews/{id}",
+      "name": "45 - Update own review: /reviews/{id}",
       "request": {
         "method": "PUT",
         "url": "{{base_url}}/reviews/{{test_review_id}}",
@@ -2200,7 +2338,7 @@
       ]
     },
     {
-      "name": "43 - Verify saved changes to own review: /reviews/{id}",
+      "name": "46 - Verify saved changes to own review: /reviews/{id}",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/reviews/{{test_review_id}}",
@@ -2240,7 +2378,7 @@
       ]
     },
     {
-      "name": "44 - Verify updated review appears in own trainer reviews: /trainers/reviews/me",
+      "name": "47 - Verify updated review appears in own trainer reviews: /trainers/reviews/me",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/trainers/reviews/me",
@@ -2283,7 +2421,7 @@
       ]
     },
     {
-      "name": "45 - Verify updated review appears in public trainer reviews: /trainers/{trainerId}/reviews",
+      "name": "48 - Verify updated review appears in public trainer reviews: /trainers/{trainerId}/reviews",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/trainers/{{trainer_id}}/reviews",
@@ -2328,7 +2466,7 @@
       ]
     },
     {
-      "name": "46 - Delete own review: /reviews/{id}",
+      "name": "49 - Delete own review: /reviews/{id}",
       "request": {
         "method": "DELETE",
         "url": "{{base_url}}/reviews/{{test_review_id}}",
@@ -2364,7 +2502,7 @@
       ]
     },
     {
-      "name": "47 - Verify deleted review is no longer available: /reviews/{id}",
+      "name": "50 - Verify deleted review is no longer available: /reviews/{id}",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/reviews/{{test_review_id}}",
@@ -2394,7 +2532,7 @@
       ]
     },
     {
-      "name": "48 - Delete second athlete as administrator: /users/{id}",
+      "name": "51 - Delete second athlete as administrator: /users/{id}",
       "request": {
         "method": "DELETE",
         "url": "{{base_url}}/users/{{second_athlete_id}}",
@@ -2430,7 +2568,7 @@
       ]
     },
     {
-      "name": "49 - Verify deleted second athlete is no longer available: /users/{id}",
+      "name": "52 - Verify deleted second athlete is no longer available: /users/{id}",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/users/{{second_athlete_id}}",
@@ -2460,7 +2598,7 @@
       ]
     },
     {
-      "name": "50 - Delete own account as first athlete: /users/me",
+      "name": "53 - Delete own account as first athlete: /users/me",
       "request": {
         "method": "DELETE",
         "url": "{{base_url}}/users/me",
@@ -2496,7 +2634,7 @@
       ]
     },
     {
-      "name": "51 - Verify deleted first athlete is no longer available: /users/{id}",
+      "name": "54 - Verify deleted first athlete is no longer available: /users/{id}",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/users/{{first_athlete_id}}",
@@ -2526,7 +2664,7 @@
       ]
     },
     {
-      "name": "52 - Verify original user count after cleanup: /users",
+      "name": "55 - Verify original user count after cleanup: /users",
       "request": {
         "method": "GET",
         "url": "{{base_url}}/users?limit=100",
